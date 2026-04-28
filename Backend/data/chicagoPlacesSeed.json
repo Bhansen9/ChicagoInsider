@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Millennium Park",
+    "category": "Landmark",
+    "neighborhood": "Downtown",
+    "price": "Free",
+    "coordinates": { "lat": 41.8826, "lng": -87.6226 },
+    "vibes": ["touristy", "scenic", "photo-friendly", "family-friendly"],
+    "bestFor": ["first-time visitors", "photos", "walking"],
+    "description": "A famous downtown Chicago landmark known for Cloud Gate, open space, and city views."
+  },
+  {
+    "name": "Chicago Riverwalk",
+    "category": "Activity",
+    "neighborhood": "River North",
+    "price": "Free",
+    "coordinates": { "lat": 41.8871, "lng": -87.6277 },
+    "vibes": ["scenic", "walkable", "romantic", "touristy"],
+    "bestFor": ["dates", "walking", "city views"],
+    "description": "A scenic walkway along the Chicago River with restaurants, views, and boat tour access."
+  },
+  {
+    "name": "The Art Institute of Chicago",
+    "category": "Museum",
+    "neighborhood": "Downtown",
+    "price": "$$",
+    "coordinates": { "lat": 41.8796, "lng": -87.6237 },
+    "vibes": ["artsy", "classic", "quiet", "cultural"],
+    "bestFor": ["art lovers", "rainy days", "tourists"],
+    "description": "One of Chicago's most well-known museums, great for art, history, and culture."
+  },
+  {
+    "name": "Au Cheval",
+    "category": "Food",
+    "neighborhood": "West Loop",
+    "price": "$$$",
+    "coordinates": { "lat": 41.8847, "lng": -87.6476 },
+    "vibes": ["trendy", "busy", "foodie", "iconic"],
+    "bestFor": ["burgers", "dinner", "visitors"],
+    "description": "A popular West Loop restaurant known for its burger and high-energy dining experience."
+  },
+  {
+    "name": "Small Cheval",
+    "category": "Food",
+    "neighborhood": "Wicker Park",
+    "price": "$$",
+    "coordinates": { "lat": 41.9105, "lng": -87.6776 },
+    "vibes": ["casual", "quick", "trendy", "college-friendly"],
+    "bestFor": ["burgers", "casual meals", "friends"],
+    "description": "A casual burger spot with a simple menu and relaxed Chicago neighborhood feel."
+  },
+  {
+    "name": "LondonHouse Rooftop",
+    "category": "Bar",
+    "neighborhood": "River North",
+    "price": "$$$",
+    "coordinates": { "lat": 41.8879, "lng": -87.6256 },
+    "vibes": ["rooftop", "luxury", "romantic", "scenic"],
+    "bestFor": ["dates", "skyline views", "drinks"],
+    "description": "An upscale rooftop bar with strong downtown and river views."
+  },
+  {
+    "name": "Lincoln Park Zoo",
+    "category": "Activity",
+    "neighborhood": "Lincoln Park",
+    "price": "Free",
+    "coordinates": { "lat": 41.9210, "lng": -87.6339 },
+    "vibes": ["family-friendly", "outdoors", "casual", "walkable"],
+    "bestFor": ["families", "day trips", "free activities"],
+    "description": "A free zoo in Lincoln Park, great for walking, animals, and low-cost city exploring."
+  },
+  {
+    "name": "Navy Pier",
+    "category": "Landmark",
+    "neighborhood": "Streeterville",
+    "price": "$$",
+    "coordinates": { "lat": 41.8917, "lng": -87.6086 },
+    "vibes": ["touristy", "family-friendly", "lakefront", "busy"],
+    "bestFor": ["tourists", "families", "lake views"],
+    "description": "A classic Chicago attraction with lakefront views, rides, food, and events."
+  },
+  {
+    "name": "The Violet Hour",
+    "category": "Bar",
+    "neighborhood": "Wicker Park",
+    "price": "$$$",
+    "coordinates": { "lat": 41.9104, "lng": -87.6774 },
+    "vibes": ["speakeasy", "moody", "romantic", "hidden-gem"],
+    "bestFor": ["cocktails", "dates", "nightlife"],
+    "description": "A stylish cocktail bar with a darker, intimate atmosphere."
+  },
+  {
+    "name": "Lou Malnati's",
+    "category": "Food",
+    "neighborhood": "River North",
+    "price": "$$",
+    "coordinates": { "lat": 41.8905, "lng": -87.6306 },
+    "vibes": ["classic", "touristy", "casual", "Chicago-style"],
+    "bestFor": ["deep dish pizza", "groups", "first-time visitors"],
+    "description": "A well-known Chicago deep dish pizza spot that works well for visitors and groups."
+  },
+  {
+    "name": "Cindy's Rooftop",
+    "category": "Bar",
+    "neighborhood": "Downtown",
+    "price": "$$$",
+    "coordinates": { "lat": 41.8817, "lng": -87.6246 },
+    "vibes": ["rooftop", "scenic", "trendy", "upscale"],
+    "bestFor": ["brunch", "drinks", "views"],
+    "description": "A rooftop restaurant and bar with views over Millennium Park and Lake Michigan."
+  },
+  {
+    "name": "Garfield Park Conservatory",
+    "category": "Activity",
+    "neighborhood": "Garfield Park",
+    "price": "Free",
+    "coordinates": { "lat": 41.8864, "lng": -87.7175 },
+    "vibes": ["peaceful", "nature", "aesthetic", "hidden-gem"],
+    "bestFor": ["photos", "quiet visits", "plants"],
+    "description": "A large indoor conservatory with gardens, plants, and calm photo-friendly spaces."
+  }
+]

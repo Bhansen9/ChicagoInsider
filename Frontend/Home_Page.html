@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChicagoInsider</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <nav class="navbar">
+      <h2>ChicagoInsider</h2>
+      <button class="profile-button" type="button" aria-label="Open profile">
+        <span class="profile-avatar" aria-hidden="true">B</span>
+        <span>Profile</span>
+      </button>
+    </nav>
+
+    <section class="discovery-hero">
+      <h1>Discover Chicago</h1>
+      <p>AI-powered recommendations for restaurants, bars, parks &amp; more</p>
+
+      <form class="hero-search" id="heroSearchForm">
+        <span class="search-icon" aria-hidden="true">Q</span>
+        <input
+          type="search"
+          id="heroSearchInput"
+          placeholder="Search for places, cuisines, or vibes..."
+          aria-label="Search Chicago places"
+        />
+      </form>
+    </section>
+  </header>
+
+  <main class="layout" id="explore">
+    <form class="filters card" id="recommendationForm">
+      <div class="panel-heading">
+        <h3>Quick Filters</h3>
+        <button class="text-btn" id="clearFiltersBtn" type="button">Clear</button>
+      </div>
+
+      <div class="field">
+        <label for="neighborhoodSelect">Neighborhood</label>
+        <select id="neighborhoodSelect" name="neighborhood">
+          <option value="">Any neighborhood</option>
+          <option>Downtown</option>
+          <option>Lincoln Park</option>
+          <option>Wicker Park</option>
+          <option>River North</option>
+          <option>West Loop</option>
+          <option>Lakeview</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Category</label>
+        <div class="chips" id="categoryChips">
+          <button type="button" class="chip active" data-category="">Any</button>
+          <button type="button" class="chip" data-category="Food">Food</button>
+          <button type="button" class="chip" data-category="Bar">Bars</button>
+          <button type="button" class="chip" data-category="Landmark">Landmarks</button>
+          <button type="button" class="chip" data-category="Activity">Activities</button>
+        </div>
+        <input type="hidden" id="categoryInput" name="category" value="" />
+      </div>
+
+      <div class="field">
+        <label for="budgetSelect">Budget</label>
+        <select id="budgetSelect" name="budget">
+          <option value="">Any budget</option>
+          <option value="cheap">$ Cheap</option>
+          <option value="moderate">$$ Moderate</option>
+          <option value="expensive">$$$ Expensive</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="vibeSelect">Vibe / Aesthetic</label>
+        <select id="vibeSelect" name="vibe">
+          <option value="">Any vibe</option>
+          <option value="cozy">Cozy</option>
+          <option value="rooftop">Rooftop</option>
+          <option value="romantic">Romantic</option>
+          <option value="hidden-gem">Hidden Gem</option>
+          <option value="touristy">Touristy</option>
+          <option value="luxury">Luxury</option>
+          <option value="college-friendly">College-Friendly</option>
+        </select>
+      </div>
+
+    </form>
+
+    <section class="results">
+      <div class="section-header card">
+        <h3>Recommended Chicago Spots</h3>
+        <p id="resultsSummary">Personalized places based on your filters.</p>
+      </div>
+
+      <div class="place-grid" id="placeGrid">
+        <p class="empty-state">Loading curated Chicago spots...</p>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <div class="card map-card">
+        <h3>Map Preview</h3>
+        <div class="map-placeholder" id="mapPreview">
+          Loading map...
+        </div>
+      </div>
+
+      <div class="card assistant-card">
+        <h3>AI Assistant</h3>
+        <div class="chat-box" id="assistantChat">
+          <p><strong>AI:</strong> Tell me what kind of Chicago plan you want.</p>
+        </div>
+        <input type="text" id="assistantInput" placeholder="Ask for a Chicago plan..." />
+      </div>
+    </aside>
+  </main>
+
+  <script src="Script.js?v=7"></script>
+</body>
+</html>
