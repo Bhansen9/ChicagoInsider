@@ -5,6 +5,7 @@
     "neighborhood": "Downtown",
     "price": "Free",
     "coordinates": { "lat": 41.8826, "lng": -87.6226 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Millennium%20park%2Cchicago.JPG?width=900",
     "vibes": ["touristy", "scenic", "photo-friendly", "family-friendly"],
     "bestFor": ["first-time visitors", "photos", "walking"],
     "description": "A famous downtown Chicago landmark known for Cloud Gate, open space, and city views."
@@ -15,6 +16,7 @@
     "neighborhood": "River North",
     "price": "Free",
     "coordinates": { "lat": 41.8871, "lng": -87.6277 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Riverwalk%20%2851556708640%29.jpg?width=900",
     "vibes": ["scenic", "walkable", "romantic", "touristy"],
     "bestFor": ["dates", "walking", "city views"],
     "description": "A scenic walkway along the Chicago River with restaurants, views, and boat tour access."
@@ -25,6 +27,7 @@
     "neighborhood": "Downtown",
     "price": "$$",
     "coordinates": { "lat": 41.8796, "lng": -87.6237 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Art%20Institute%20of%20Chicago%20Lion%20%288519756704%29.jpg?width=900",
     "vibes": ["artsy", "classic", "quiet", "cultural"],
     "bestFor": ["art lovers", "rainy days", "tourists"],
     "description": "One of Chicago's most well-known museums, great for art, history, and culture."
@@ -35,6 +38,9 @@
     "neighborhood": "West Loop",
     "price": "$$$",
     "coordinates": { "lat": 41.8847, "lng": -87.6476 },
+    "imageUrl": "https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg",
+    "rating": 4.4,
+    "reviewUrl": "https://www.yelp.com/search?find_desc=Au%20Cheval&find_loc=Chicago%2C%20IL",
     "vibes": ["trendy", "busy", "foodie", "iconic"],
     "bestFor": ["burgers", "dinner", "visitors"],
     "description": "A popular West Loop restaurant known for its burger and high-energy dining experience."
@@ -45,6 +51,9 @@
     "neighborhood": "Wicker Park",
     "price": "$$",
     "coordinates": { "lat": 41.9105, "lng": -87.6776 },
+    "imageUrl": "https://images.squarespace-cdn.com/content/v1/664b756924d01f2bafa19992/bfae2152-f1c0-4280-80f5-11ea7e0860db/new-shots-outdoor-2.jpeg",
+    "rating": 4.3,
+    "reviewUrl": "https://www.yelp.com/search?find_desc=Small%20Cheval%20Wicker%20Park&find_loc=Chicago%2C%20IL",
     "vibes": ["casual", "quick", "trendy", "college-friendly"],
     "bestFor": ["burgers", "casual meals", "friends"],
     "description": "A casual burger spot with a simple menu and relaxed Chicago neighborhood feel."
@@ -55,6 +64,9 @@
     "neighborhood": "River North",
     "price": "$$$",
     "coordinates": { "lat": 41.8879, "lng": -87.6256 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/London%20House%20Rooftop%2C%20Chicago.jpg?width=900",
+    "rating": 3.0,
+    "reviewUrl": "https://www.yelp.com/biz/lh-rooftop-chicago",
     "vibes": ["rooftop", "luxury", "romantic", "scenic"],
     "bestFor": ["dates", "skyline views", "drinks"],
     "description": "An upscale rooftop bar with strong downtown and river views."
@@ -65,6 +77,7 @@
     "neighborhood": "Lincoln Park",
     "price": "Free",
     "coordinates": { "lat": 41.9210, "lng": -87.6339 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Lincoln%20Park%20Zoo%2C%20Chicago%2C%20United%20States%20%28Unsplash%20LfGqCrLmhp0%29.jpg?width=900",
     "vibes": ["family-friendly", "outdoors", "casual", "walkable"],
     "bestFor": ["families", "day trips", "free activities"],
     "description": "A free zoo in Lincoln Park, great for walking, animals, and low-cost city exploring."
@@ -75,6 +88,7 @@
     "neighborhood": "Streeterville",
     "price": "$$",
     "coordinates": { "lat": 41.8917, "lng": -87.6086 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Navy%20Pier%2C%20Chicago%2C%20Illinois%20%2811004497314%29.jpg?width=900",
     "vibes": ["touristy", "family-friendly", "lakefront", "busy"],
     "bestFor": ["tourists", "families", "lake views"],
     "description": "A classic Chicago attraction with lakefront views, rides, food, and events."
@@ -85,6 +99,9 @@
     "neighborhood": "Wicker Park",
     "price": "$$$",
     "coordinates": { "lat": 41.9104, "lng": -87.6774 },
+    "imageUrl": "https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg",
+    "rating": 4.2,
+    "reviewUrl": "https://www.yelp.com/biz/the-violet-hour-chicago",
     "vibes": ["speakeasy", "moody", "romantic", "hidden-gem"],
     "bestFor": ["cocktails", "dates", "nightlife"],
     "description": "A stylish cocktail bar with a darker, intimate atmosphere."
@@ -95,6 +112,9 @@
     "neighborhood": "River North",
     "price": "$$",
     "coordinates": { "lat": 41.8905, "lng": -87.6306 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Lou%20Malnati%27s%20%287705519362%29.jpg?width=900",
+    "rating": 4.1,
+    "reviewUrl": "https://www.yelp.com/search?find_desc=Lou%20Malnati%27s%20Pizzeria&find_loc=River%20North%2C%20Chicago%2C%20IL",
     "vibes": ["classic", "touristy", "casual", "Chicago-style"],
     "bestFor": ["deep dish pizza", "groups", "first-time visitors"],
     "description": "A well-known Chicago deep dish pizza spot that works well for visitors and groups."
@@ -105,6 +125,9 @@
     "neighborhood": "Downtown",
     "price": "$$$",
     "coordinates": { "lat": 41.8817, "lng": -87.6246 },
+    "imageUrl": "https://cdn.prod.website-files.com/692deee1433d0acae210e525/6930b2963bc306834dd9c99c_Daniel%20Kelleghan%20Photography-2024-03-25%20Cindys57247-HDR.avif",
+    "rating": 4.1,
+    "reviewUrl": "https://www.yelp.com/biz/cindys-rooftop-chicago",
     "vibes": ["rooftop", "scenic", "trendy", "upscale"],
     "bestFor": ["brunch", "drinks", "views"],
     "description": "A rooftop restaurant and bar with views over Millennium Park and Lake Michigan."
@@ -115,6 +138,7 @@
     "neighborhood": "Garfield Park",
     "price": "Free",
     "coordinates": { "lat": 41.8864, "lng": -87.7175 },
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Garfield%20Park%20Conservatory%20%28Chicago%29%20%2838106651681%29.jpg?width=900",
     "vibes": ["peaceful", "nature", "aesthetic", "hidden-gem"],
     "bestFor": ["photos", "quiet visits", "plants"],
     "description": "A large indoor conservatory with gardens, plants, and calm photo-friendly spaces."

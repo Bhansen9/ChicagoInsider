@@ -30,15 +30,52 @@ input {
 }
 
 .navbar {
+  width: min(1180px, calc(100% - 64px));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 22px 48px 10px;
+  gap: 18px;
+  margin: 22px auto 0;
+  padding: 8px 10px 8px 22px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(226, 232, 240, 0.72);
+  border-radius: 999px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(18px);
 }
 
 .navbar h2 {
   color: var(--primary);
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-links a {
+  color: var(--primary);
+  text-decoration: none;
+  background: rgba(239, 246, 255, 0.72);
+  border: 1px solid rgba(37, 99, 235, 0.5);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.nav-links a:hover,
+.nav-links a:focus-visible {
+  background: rgba(219, 234, 254, 0.9);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .profile-button,
@@ -72,6 +109,8 @@ input {
   align-items: center;
   gap: 10px;
   padding-left: 10px;
+  border-radius: 999px;
+  min-height: 42px;
 }
 
 .profile-avatar {
@@ -88,14 +127,57 @@ input {
 }
 
 .hero {
-  background: var(--background);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #eef4fb;
   color: var(--text);
+  min-height: 480px;
   padding-bottom: 56px;
   border-bottom: 1px solid var(--border);
 }
 
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(248, 250, 252, 0.48), rgba(248, 250, 252, 0.18) 50%, rgba(248, 250, 252, 0.5)),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.16), rgba(248, 250, 252, 0.5));
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: #dbeafe;
+}
+
+.hero-bg-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  opacity: 0;
+  transform: scale(1.03);
+  transition: opacity 700ms ease;
+}
+
+.hero-bg-image.active {
+  opacity: 1;
+}
+
+.navbar,
+.discovery-hero {
+  position: relative;
+  z-index: 1;
+}
+
 .hero .navbar {
-  padding-bottom: 0;
+  position: relative;
 }
 
 .discovery-hero {
@@ -110,13 +192,19 @@ input {
   line-height: 1;
   letter-spacing: 0;
   margin-bottom: 18px;
+  text-shadow:
+    0 2px 2px rgba(255, 255, 255, 0.95),
+    0 10px 26px rgba(255, 255, 255, 0.82);
 }
 
 .discovery-hero p {
-  color: var(--muted);
+  color: #1f2937;
   font-size: 24px;
   line-height: 1.4;
   margin-bottom: 38px;
+  text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.96),
+    0 8px 20px rgba(255, 255, 255, 0.82);
 }
 
 .hero-search {
@@ -296,8 +384,26 @@ textarea {
 }
 
 .place-card {
-  min-height: 270px;
+  min-height: 390px;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.place-card-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #dbeafe;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.place-card-body {
+  width: 100%;
+  display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: flex-start;
 }
@@ -323,6 +429,32 @@ textarea {
 .place-card button:hover {
   background: #16a34a;
   color: #ffffff;
+}
+
+.restaurant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.stars {
+  color: #f59e0b;
+  letter-spacing: 1px;
+}
+
+.restaurant-meta a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.restaurant-meta a:hover,
+.restaurant-meta a:focus-visible {
+  text-decoration: underline;
 }
 
 .neighborhood,
@@ -415,10 +547,25 @@ textarea {
 }
 
 @media (max-width: 780px) {
-  .navbar,
   .layout {
     padding-left: 20px;
     padding-right: 20px;
+  }
+
+  .navbar {
+    width: calc(100% - 32px);
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .navbar h2 {
+    position: static;
+    transform: none;
+    font-size: 18px;
+  }
+
+  .nav-links {
+    display: none;
   }
 
   .layout,

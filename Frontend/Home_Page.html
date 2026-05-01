@@ -4,11 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChicagoInsider</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="Styles.css?v=19" />
 </head>
 <body>
   <header class="hero">
+    <div class="hero-bg" aria-hidden="true">
+      <img class="hero-bg-image active" id="heroBgImageA" alt="" />
+      <img class="hero-bg-image" id="heroBgImageB" alt="" />
+    </div>
+
     <nav class="navbar">
+      <div class="nav-links" aria-label="Primary navigation">
+        <a href="#explore">Trending This Week</a>
+      </div>
       <h2>ChicagoInsider</h2>
       <button class="profile-button" type="button" aria-label="Open profile">
         <span class="profile-avatar" aria-hidden="true">B</span>
@@ -119,6 +127,6 @@
     </aside>
   </main>
 
-  <script src="Script.js?v=7"></script>
+  <script src="Script.js?v=17"></script>
 </body>
 </html>

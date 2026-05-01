@@ -6,14 +6,14 @@ const placesRouter = require("./routes/places");
 const configRouter = require("./routes/config");
 
 const app = express();
-const PORT = Number(process.env.PORT || 3000);
+const PORT = 3000;
 const frontendDir = path.join(__dirname, "..", "Frontend");
 
 app.use(express.json());
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+  if (!origin || origin === "http://localhost:3000") {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -46,13 +46,13 @@ app.use((err, req, res, next) => {
 
 function startServer(port) {
   const server = app.listen(port, () => {
-    console.log(`Chicago Lens AI running at http://localhost:${port}`);
+    console.log("Chicago Lens AI running at http://localhost:3000");
   });
 
   server.on("error", (error) => {
-    if (error.code === "EADDRINUSE" && !process.env.PORT) {
-      console.log(`Port ${port} is busy. Trying http://localhost:${port + 1}`);
-      startServer(port + 1);
+    if (error.code === "EADDRINUSE") {
+      console.error("Port 3000 is busy. Stop the other process and restart this app.");
+      process.exit(1);
       return;
     }
 
