@@ -98,16 +98,7 @@ function fadeHeroBackground(newSrc) {
 }
 
 function startHeroSlideshow() {
-  if (!heroBgImageA || !heroBgImageB || heroSlideshowTimer) return;
-
-  heroBgImageA.src = chicagoHeroSlides[0];
-  chicagoHeroSlides.slice(1, 4).forEach(preloadHeroSlide);
-
-  heroSlideshowTimer = window.setInterval(() => {
-    heroSlideIndex = (heroSlideIndex + 1) % chicagoHeroSlides.length;
-    fadeHeroBackground(chicagoHeroSlides[heroSlideIndex]);
-    preloadHeroSlide(chicagoHeroSlides[(heroSlideIndex + 1) % chicagoHeroSlides.length]);
-  }, 3000);
+  if (!heroBgImageA) return;
 }
 
 function escapeHtml(value) {

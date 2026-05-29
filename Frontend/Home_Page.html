@@ -4,32 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChicagoInsider</title>
-  <link rel="stylesheet" href="Styles.css?v=19" />
+  <link rel="stylesheet" href="Styles.css?v=30" />
 </head>
 <body>
   <header class="hero">
     <div class="hero-bg" aria-hidden="true">
-      <img class="hero-bg-image active" id="heroBgImageA" alt="" />
-      <img class="hero-bg-image" id="heroBgImageB" alt="" />
+      <img class="hero-bg-image active" id="heroBgImageA" src="assets/pixel-chicago-hero.png" alt="" />
     </div>
 
     <nav class="navbar">
       <div class="nav-links" aria-label="Primary navigation">
-        <a href="#explore">Trending This Week</a>
+        <a href="#explore">Trending This Week &#128293;</a>
       </div>
-      <h2>ChicagoInsider</h2>
-      <button class="profile-button" type="button" aria-label="Open profile">
-        <span class="profile-avatar" aria-hidden="true">B</span>
-        <span>Profile</span>
-      </button>
+      <h2><img class="city-logo" src="assets/chicago-logo.svg" alt="" /> ChicagoInsider</h2>
+      <div class="nav-actions">
+        <a href="Plan_Outings.html">Plan Outings</a>
+        <a href="#explore">Full Collections</a>
+        <button class="profile-button" type="button" aria-label="Open profile">
+          <span>Profile</span>
+        </button>
+      </div>
     </nav>
 
     <section class="discovery-hero">
       <h1>Discover Chicago</h1>
-      <p>AI-powered recommendations for restaurants, bars, parks &amp; more</p>
+      <p>AI-Assisted recommendations for restaurants, bars, landmarks &amp; more</p>
 
       <form class="hero-search" id="heroSearchForm">
-        <span class="search-icon" aria-hidden="true">Q</span>
+        <span class="search-icon" aria-hidden="true"></span>
         <input
           type="search"
           id="heroSearchInput"
@@ -127,6 +129,6 @@
     </aside>
   </main>
 
-  <script src="Script.js?v=17"></script>
+  <script src="Script.js?v=21"></script>
 </body>
 </html>

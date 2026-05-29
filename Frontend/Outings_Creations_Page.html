@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Outing | ChicagoInsider</title>
+  <link rel="stylesheet" href="Outings_Creations_Page.css?v=1" />
+</head>
+<body>
+  <div class="creation-shell">
+    <header class="creation-header">
+      <nav class="creation-nav" aria-label="Outing editor navigation">
+        <a class="brand-icon" href="Plan_Outings.html" aria-label="Back to outings">
+          <img src="assets/chicago-logo.svg" alt="" />
+        </a>
+        <a href="Plan_Outings.html">Outings</a>
+      </nav>
+
+      <h1>ChicagoInsider</h1>
+
+      <div class="header-actions">
+        <button type="button">Share
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v10"></path>
+            <path d="M8 7l4-4 4 4"></path>
+            <path d="M5 12v7h14v-7"></path>
+          </svg>
+        </button>
+        <button class="icon-pill" type="button" aria-label="Copy link">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path>
+            <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path>
+          </svg>
+        </button>
+        <button class="avatar-pill" type="button">B</button>
+      </div>
+
+      <div class="menu-row">
+        <button type="button">File</button>
+        <button type="button">Edit</button>
+      </div>
+    </header>
+
+    <main class="creation-layout">
+      <aside class="collections-pane" aria-label="Collections Playbook">
+        <div class="pane-heading">
+          <h2>Collections Playbook</h2>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2 5h20"></path>
+            <path d="M6 12h12"></path>
+            <path d="M9 19h6"></path>
+          </svg>
+        </div>
+
+        <div class="collections-list">
+          <article class="collection-card">
+            <span class="tag">Food/Bar | $$</span>
+            <h3>Flaco's Tacos</h3>
+            <img src="https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg" alt="Flaco's Tacos" />
+            <p class="source">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path></svg>
+              flacostacosonline.com
+            </p>
+            <p class="time">May 29, 2026 - 10:30AM - 10PM</p>
+          </article>
+
+          <article class="collection-card">
+            <span class="tag">Activities | $$$</span>
+            <h3>Lucky Strike Chicago</h3>
+            <img src="https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg" alt="Lucky Strike Chicago" />
+            <p class="source">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path></svg>
+              luckystrikeent.com
+            </p>
+            <p class="time">May 29, 2026 - 4 PM - 1 AM</p>
+          </article>
+
+          <button class="add-stop-card" type="button" aria-label="Add collection">
+            <span>+</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="planner-canvas" aria-label="Outing timeline">
+        <div class="canvas-toolbar">
+          <button type="button">Boy's Night</button>
+          <strong>May 29th, 2026</strong>
+          <button type="button">TimeFrame: 5 PM - 9 PM
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+        </div>
+        <div class="canvas-drop-zone"></div>
+      </section>
+
+      <aside class="details-pane" aria-label="Outing details">
+        <section>
+          <h2>Map View</h2>
+          <div class="map-card" aria-hidden="true">
+            <div class="map-grid"></div>
+            <span class="pin pin-a"></span>
+            <span class="pin pin-b"></span>
+            <span class="pin pin-c"></span>
+            <span class="pin pin-d"></span>
+            <strong>Chicago</strong>
+          </div>
+        </section>
+
+        <section>
+          <h2>Contributors
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </h2>
+          <div class="contributors-card">
+            <button type="button">Ben <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+            <button type="button">Trevor <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+            <button type="button">Add New Contributors <span>⊞</span></button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Budget Estimate <span class="money-icon">$</span></h2>
+          <div class="budget-card"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>

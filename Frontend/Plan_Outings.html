@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan New Outing | ChicagoInsider</title>
+  <link rel="stylesheet" href="Plan_Outings.css?v=22" />
+</head>
+<body>
+  <div class="outing-shell">
+    <aside class="playbook-panel" aria-label="PlayBook">
+      <div class="playbook-heading">
+        <h1>PlayBook</h1>
+        <button class="icon-button" id="playbookFilterBtn" type="button" aria-label="Open PlayBook options">
+          <svg class="list-filter-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 5h20"></path>
+            <path d="M6 12h12"></path>
+            <path d="M9 19h6"></path>
+          </svg>
+        </button>
+        <div class="filter-menu playbook-menu" id="playbookFilterMenu" aria-label="PlayBook options">
+          <button type="button" data-action="clear">Clear</button>
+          <button type="button" data-action="budget">Budget $ -> $$$</button>
+          <button type="button" data-action="neighborhood">Neighborhood</button>
+        </div>
+      </div>
+
+      <div class="playbook-list" id="playbookList" aria-label="Selected places">
+        <p class="drop-hint">Drag places here</p>
+      </div>
+
+      <button class="add-card" id="addBlankStopBtn" type="button" aria-label="Add empty PlayBook stop">
+        <span>+</span>
+      </button>
+    </aside>
+
+    <main class="outing-main">
+      <header class="outing-header">
+        <nav class="outing-nav" aria-label="Plan outings navigation">
+          <a class="brand" href="Home_Page.html" aria-label="ChicagoInsider home">
+            <img class="city-logo" src="assets/chicago-logo.svg" alt="" />
+          </a>
+          <a href="Home_Page.html">Home</a>
+          <a href="Home_Page.html#explore">Full Collections</a>
+        </nav>
+        <h2>Plan New Outing</h2>
+        <button class="profile-pill" type="button">Profile</button>
+      </header>
+
+      <section class="planner-section">
+        <div class="search-row">
+          <label class="search-box" for="collectionSearch">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input id="collectionSearch" type="search" placeholder="Search Collections..." />
+          </label>
+          <button class="filter-button" id="collectionFilterBtn" type="button" aria-label="Filter collections">
+            <svg class="list-filter-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 5h20"></path>
+              <path d="M6 12h12"></path>
+              <path d="M9 19h6"></path>
+            </svg>
+          </button>
+          <div class="filter-menu" id="collectionFilterMenu" aria-label="Collection filters">
+            <button type="button" data-filter="all">All</button>
+            <button type="button" data-filter="food">Food</button>
+            <button type="button" data-filter="activity">Activity</button>
+            <button type="button" data-filter="bar">Bars</button>
+            <button type="button" data-filter="free">Free</button>
+          </div>
+        </div>
+
+        <h3>Collection Quick Access</h3>
+        <div class="collection-board" id="collectionBoard" aria-label="Collection Quick Access">
+          <p class="board-title">Drag and Drop Into PlayBook</p>
+          <div class="collection-grid" id="collectionGrid"></div>
+        </div>
+      </section>
+
+      <section class="planner-section outings-section">
+        <div class="search-row">
+          <label class="search-box" for="outingSearch">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input id="outingSearch" type="search" placeholder="Search Outings..." />
+          </label>
+          <button class="filter-button" id="outingFilterBtn" type="button" aria-label="Filter outings">
+            <svg class="list-filter-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 5h20"></path>
+              <path d="M6 12h12"></path>
+              <path d="M9 19h6"></path>
+            </svg>
+          </button>
+          <div class="filter-menu" id="outingFilterMenu" aria-label="Outing filters">
+            <button type="button" data-filter="all">All</button>
+            <button type="button" data-filter="date">Date Night</button>
+            <button type="button" data-filter="birthday">Birthday</button>
+            <button type="button" data-filter="adventure">Adventure</button>
+          </div>
+        </div>
+
+        <h3>Recent Outings</h3>
+        <div class="recent-board">
+          <button class="recent-add" id="createOutingBtn" type="button" aria-label="Create new outing">
+            <span>+</span>
+          </button>
+          <div class="outing-grid" id="outingGrid"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="Plan_Outings.js?v=9"></script>
+</body>
+</html>
