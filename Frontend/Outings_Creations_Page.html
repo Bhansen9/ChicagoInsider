@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Outing | ChicagoInsider</title>
-  <link rel="stylesheet" href="Outings_Creations_Page.css?v=1" />
+  <link rel="stylesheet" href="Outings_Creations_Page.css?v=21" />
 </head>
 <body>
   <div class="creation-shell">
@@ -16,10 +16,10 @@
         <a href="Plan_Outings.html">Outings</a>
       </nav>
 
-      <h1>ChicagoInsider</h1>
+      <h1><a href="Home_Page.html">ChicagoInsider</a></h1>
 
       <div class="header-actions">
-        <button type="button">Share
+        <button id="headerShareBtn" type="button">Share
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 3v10"></path>
             <path d="M8 7l4-4 4 4"></path>
@@ -36,8 +36,24 @@
       </div>
 
       <div class="menu-row">
-        <button type="button">File</button>
-        <button type="button">Edit</button>
+        <div class="file-menu-wrap">
+          <button id="fileMenuBtn" type="button">File</button>
+          <div class="file-menu" id="fileMenu" aria-label="File options">
+            <button type="button" data-file-action="new">New</button>
+            <button type="button" data-file-action="download">Download</button>
+            <button type="button" data-file-action="share">Share</button>
+            <button type="button" data-file-action="email">Email</button>
+            <button type="button" data-file-action="rename">Rename</button>
+            <button type="button" data-file-action="delete">Delete Outing</button>
+          </div>
+        </div>
+        <div class="edit-menu-wrap">
+          <button id="editMenuBtn" type="button">Edit</button>
+          <div class="edit-menu" id="editMenu" aria-label="Edit options">
+            <button type="button" data-edit-action="undo">Undo</button>
+            <button type="button" data-edit-action="redo">Redo</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -45,49 +61,43 @@
       <aside class="collections-pane" aria-label="Collections Playbook">
         <div class="pane-heading">
           <h2>Collections Playbook</h2>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M2 5h20"></path>
-            <path d="M6 12h12"></path>
-            <path d="M9 19h6"></path>
-          </svg>
-        </div>
-
-        <div class="collections-list">
-          <article class="collection-card">
-            <span class="tag">Food/Bar | $$</span>
-            <h3>Flaco's Tacos</h3>
-            <img src="https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg" alt="Flaco's Tacos" />
-            <p class="source">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path></svg>
-              flacostacosonline.com
-            </p>
-            <p class="time">May 29, 2026 - 10:30AM - 10PM</p>
-          </article>
-
-          <article class="collection-card">
-            <span class="tag">Activities | $$$</span>
-            <h3>Lucky Strike Chicago</h3>
-            <img src="https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg" alt="Lucky Strike Chicago" />
-            <p class="source">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path></svg>
-              luckystrikeent.com
-            </p>
-            <p class="time">May 29, 2026 - 4 PM - 1 AM</p>
-          </article>
-
-          <button class="add-stop-card" type="button" aria-label="Add collection">
-            <span>+</span>
+          <button class="playbook-options-button" id="playbookOptionsBtn" type="button" aria-label="Open Playbook options">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 5h20"></path>
+              <path d="M6 12h12"></path>
+              <path d="M9 19h6"></path>
+            </svg>
           </button>
+          <div class="playbook-options-menu" id="playbookOptionsMenu" aria-label="Playbook options">
+            <button type="button" data-action="clear">Clear</button>
+            <button type="button" data-action="budget">Budget $ - $$$</button>
+            <button type="button" data-action="neighborhood">Neighborhood</button>
+          </div>
         </div>
+
+        <div class="collections-list" id="creationPlaybookList"></div>
       </aside>
 
       <section class="planner-canvas" aria-label="Outing timeline">
         <div class="canvas-toolbar">
-          <button type="button">Boy's Night</button>
-          <strong>May 29th, 2026</strong>
-          <button type="button">TimeFrame: 5 PM - 9 PM
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
-          </button>
+          <label class="outing-title-field" for="outingTitleInput">
+            <input id="outingTitleInput" type="text" value="Untitled Outing" aria-label="Outing title" />
+          </label>
+          <label class="outing-date-field" for="outingDateInput">
+            <input id="outingDateInput" type="date" value="2026-05-29" />
+          </label>
+          <label class="timeframe-field" for="timeframeSelect">
+            <span>TimeFrame:</span>
+            <input id="timeframeSelect" type="text" value="Evening: 5 PM - 9 PM" list="timeframeOptions" aria-label="Outing timeframe" />
+            <datalist id="timeframeOptions">
+              <option value="Morning: 9 AM - 12 PM"></option>
+              <option value="Afternoon: 12 PM - 4 PM"></option>
+              <option value="Evening: 5 PM - 9 PM"></option>
+              <option value="Night: 8 PM - 12 AM"></option>
+              <option value="Late Night: 10 PM - 2 AM"></option>
+              <option value="All Day: 10 AM - 10 PM"></option>
+            </datalist>
+          </label>
         </div>
         <div class="canvas-drop-zone"></div>
       </section>
@@ -95,13 +105,8 @@
       <aside class="details-pane" aria-label="Outing details">
         <section>
           <h2>Map View</h2>
-          <div class="map-card" aria-hidden="true">
-            <div class="map-grid"></div>
-            <span class="pin pin-a"></span>
-            <span class="pin pin-b"></span>
-            <span class="pin pin-c"></span>
-            <span class="pin pin-d"></span>
-            <strong>Chicago</strong>
+          <div class="map-card google-map-preview" id="outingMapPreview" aria-label="Playbook places map">
+            Loading map...
           </div>
         </section>
 
@@ -122,6 +127,23 @@
         </section>
       </aside>
     </main>
+
+    <div class="share-dialog-backdrop" id="shareDialog" aria-hidden="true">
+      <section class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="shareDialogTitle">
+        <div class="share-dialog-header">
+          <h2 id="shareDialogTitle">Share Outing</h2>
+          <button id="closeShareDialogBtn" type="button" aria-label="Close share dialog">x</button>
+        </div>
+        <label for="shareUsernameInput">Username</label>
+        <div class="share-input-row">
+          <input id="shareUsernameInput" type="text" placeholder="ben, trevor, alex..." autocomplete="off" />
+          <button id="addShareUserBtn" type="button">Share</button>
+        </div>
+        <div class="share-results" id="shareResults"></div>
+        <div class="shared-users" id="sharedUsers"></div>
+      </section>
+    </div>
   </div>
+  <script src="Outings_Creations_Page.js?v=18"></script>
 </body>
 </html>

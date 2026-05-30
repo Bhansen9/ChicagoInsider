@@ -532,17 +532,50 @@ textarea {
   height: 255px;
   border-radius: 8px;
   border: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  display: block;
   color: var(--muted);
   margin-top: 14px;
   overflow: hidden;
 }
 
-.map-placeholder:has(.gm-style) {
+.google-map-frame {
+  width: 100%;
+  height: 100%;
   display: block;
-  min-height: 255px;
+  border: 0;
+  border-radius: 8px;
+}
+
+.map-overlay-pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.map-overlay-pin {
+  position: absolute;
+  width: 31px;
+  height: 31px;
+  border: 0;
+  border-radius: 999px 999px 999px 0;
+  background: #e7332f;
+  box-shadow: 0 6px 14px rgba(127, 29, 29, 0.32);
+  transform: translate(-50%, -100%) rotate(-45deg);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.map-overlay-pin span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  transform: rotate(45deg);
 }
 
 .chat-box {

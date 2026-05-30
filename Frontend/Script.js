@@ -70,6 +70,28 @@ let heroSlideIndex = 0;
 let showingHeroImageA = true;
 let heroSlideshowTimer;
 
+const chicagoMapBounds = {
+  north: 41.96,
+  south: 41.78,
+  west: -87.74,
+  east: -87.55
+};
+
+const placeCoordinateFallbacks = {
+  "Millennium Park": { lat: 41.8826, lng: -87.6226 },
+  "Chicago Riverwalk": { lat: 41.8871, lng: -87.6277 },
+  "The Art Institute of Chicago": { lat: 41.8796, lng: -87.6237 },
+  "Au Cheval": { lat: 41.8847, lng: -87.6476 },
+  "Small Cheval": { lat: 41.9105, lng: -87.6776 },
+  "LondonHouse Rooftop": { lat: 41.8879, lng: -87.6256 },
+  "Lincoln Park Zoo": { lat: 41.9210, lng: -87.6339 },
+  "Navy Pier": { lat: 41.8917, lng: -87.6086 },
+  "The Violet Hour": { lat: 41.9104, lng: -87.6774 },
+  "Lou Malnati's": { lat: 41.8905, lng: -87.6306 },
+  "Cindy's Rooftop": { lat: 41.8817, lng: -87.6246 },
+  "Garfield Park Conservatory": { lat: 41.8864, lng: -87.7175 }
+};
+
 function titleCase(value) {
   return String(value || "")
     .replace(/-/g, " ")
@@ -203,18 +225,29 @@ async function updateMapMarkers(places = []) {
   try {
     const { maps, map } = await ensureMap();
     const bounds = new maps.LatLngBounds();
-    const placesWithCoordinates = places.filter((place) => place.coordinates);
+    const placesWithCoordinates = places
+      .map((place) => ({
+        ...place,
+        coordinates: place.coordinates || placeCoordinateFallbacks[place.name]
+      }))
+      .filter((place) => place.coordinates);
 
     mapMarkers.forEach((marker) => marker.setMap(null));
-    mapMarkers = placesWithCoordinates.map((place) => {
+    mapMarkers = placesWithCoordinates.map((place, index) => {
       const marker = new maps.Marker({
         position: place.coordinates,
         map,
-        title: place.name
+        title: place.name,
+        label: {
+          text: String(index + 1),
+          color: "#ffffff",
+          fontSize: "12px",
+          fontWeight: "700"
+        }
       });
 
       const infoWindow = new maps.InfoWindow({
-        content: `<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.neighborhood)}`
+        content: `<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.neighborhood || "Chicago")}`
       });
 
       marker.addListener("click", () => infoWindow.open({ anchor: marker, map }));
@@ -227,6 +260,9 @@ async function updateMapMarkers(places = []) {
     } else if (placesWithCoordinates.length === 1) {
       map.setCenter(placesWithCoordinates[0].coordinates);
       map.setZoom(14);
+    } else {
+      map.setCenter({ lat: 41.8781, lng: -87.6298 });
+      map.setZoom(12);
     }
   } catch (error) {
     console.error(error);

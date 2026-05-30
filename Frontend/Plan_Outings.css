@@ -114,6 +114,7 @@ input {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .add-card.is-hidden {
@@ -130,6 +131,21 @@ input {
   background: #f8fbff;
   outline: 3px solid rgba(115, 149, 230, 0.45);
   outline-offset: -6px;
+}
+
+.add-card:hover,
+.add-card:focus-visible {
+  border-color: #7395e6;
+  background: #f8fbff;
+  box-shadow: 0 10px 22px rgba(47, 101, 237, 0.16);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.add-card:hover span,
+.add-card:focus-visible span {
+  border-color: #2f65ed;
+  color: #2f65ed;
 }
 
 .add-card span,
@@ -443,10 +459,10 @@ input {
 .remove-stop {
   min-width: 54px;
   height: 22px;
-  border: 1px solid #cfd7e4;
+  border: 1px solid #fecaca;
   border-radius: 5px;
-  background: #ffffff;
-  color: #111827;
+  background: #fee2e2;
+  color: #b91c1c;
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
@@ -459,8 +475,8 @@ input {
 
 .remove-stop:hover,
 .remove-stop:focus-visible {
-  background: #e8f0ff;
-  border-color: #7395e6;
+  background: #fecaca;
+  border-color: #f87171;
   outline: none;
 }
 
@@ -476,9 +492,10 @@ input {
 
 .recent-add {
   min-height: 296px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: #ffffff;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .recent-add {
@@ -486,6 +503,21 @@ input {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.recent-add:hover,
+.recent-add:focus-visible {
+  border-color: #7395e6;
+  background: #f8fbff;
+  box-shadow: 0 10px 22px rgba(47, 101, 237, 0.16);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.recent-add:hover span,
+.recent-add:focus-visible span {
+  border-color: #2f65ed;
+  color: #2f65ed;
 }
 
 .outing-grid {
