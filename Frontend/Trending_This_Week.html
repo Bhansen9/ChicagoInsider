@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trending This Week | ChicagoInsider</title>
+  <link rel="stylesheet" href="Trending_This_Week.css?v=1" />
+</head>
+<body>
+  <div class="trending-shell">
+    <header class="trending-header">
+      <nav class="trending-nav" aria-label="Trending navigation">
+        <a class="brand" href="Home_Page.html" aria-label="ChicagoInsider home">
+          <img class="city-logo" src="assets/chicago-logo.svg" alt="" />
+        </a>
+        <a href="Home_Page.html">Home</a>
+        <a href="Plan_Outings.html">Outings</a>
+        <a href="Full_Collections_Page.html">Collections</a>
+      </nav>
+
+      <h1>Trending This Week</h1>
+
+      <a class="profile-pill" href="Profile_Page.html">Profile</a>
+    </header>
+
+    <main class="trending-main">
+      <section class="trend-hero" aria-label="Trending summary">
+        <div>
+          <p class="eyebrow">Chicago pulse</p>
+          <h2>High-energy spots people are saving for this week.</h2>
+          <p>Built from the ChicagoInsider collection: rooftops, river views, classic food stops, and easy group-friendly picks.</p>
+        </div>
+        <div class="trend-score-card">
+          <span id="savedTrendCount">0</span>
+          <p>trending spots saved</p>
+        </div>
+      </section>
+
+      <section class="trend-controls" aria-label="Trending filters">
+        <button class="trend-tab active" type="button" data-filter="all">All</button>
+        <button class="trend-tab" type="button" data-filter="food">Food</button>
+        <button class="trend-tab" type="button" data-filter="bar">Bars</button>
+        <button class="trend-tab" type="button" data-filter="activity">Activities</button>
+        <button class="trend-tab" type="button" data-filter="free">Free</button>
+      </section>
+
+      <section class="trend-board" aria-label="Trending places">
+        <div class="trend-grid" id="trendGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="Trending_This_Week.js?v=1"></script>
+</body>
+</html>

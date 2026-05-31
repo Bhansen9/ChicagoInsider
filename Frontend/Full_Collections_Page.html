@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Full Collections | ChicagoInsider</title>
+  <link rel="stylesheet" href="Full_Collections_Page.css?v=1" />
+</head>
+<body>
+  <div class="collections-shell">
+    <header class="collections-header">
+      <nav class="collections-nav" aria-label="Full collections navigation">
+        <a class="brand" href="Home_Page.html" aria-label="ChicagoInsider home">
+          <img class="city-logo" src="assets/chicago-logo.svg" alt="" />
+        </a>
+        <a href="Home_Page.html">Home</a>
+        <a href="Plan_Outings.html">Plan Outings</a>
+      </nav>
+
+      <h1>Full Collections</h1>
+
+      <a class="profile-pill" href="Profile_Page.html">Profile</a>
+    </header>
+
+    <main class="collections-main">
+      <section class="collections-tools" aria-label="Collection tools">
+        <label class="search-box" for="collectionSearch">
+          <span class="search-icon" aria-hidden="true"></span>
+          <input id="collectionSearch" type="search" placeholder="Search collections..." />
+        </label>
+
+        <div class="filter-wrap">
+          <button class="icon-button" id="collectionFilterBtn" type="button" aria-label="Filter collections">
+            <svg class="list-filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 5h20"></path>
+              <path d="M6 12h12"></path>
+              <path d="M9 19h6"></path>
+            </svg>
+          </button>
+          <div class="tool-menu" id="collectionFilterMenu" aria-label="Collection filters">
+            <button type="button" data-filter="all">All</button>
+            <button type="button" data-filter="food">Food</button>
+            <button type="button" data-filter="activity">Activity</button>
+            <button type="button" data-filter="bar">Bars</button>
+            <button type="button" data-filter="free">Free</button>
+          </div>
+        </div>
+
+        <div class="sort-wrap">
+          <button class="sort-button" id="collectionSortBtn" type="button">Sort Collections</button>
+          <div class="tool-menu sort-menu" id="collectionSortMenu" aria-label="Collection sorting">
+            <button type="button" data-sort="featured">Featured</button>
+            <button type="button" data-sort="name">Name</button>
+            <button type="button" data-sort="neighborhood">Neighborhood</button>
+            <button type="button" data-sort="budget">Budget</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="collections-board" aria-label="All places">
+        <div class="collections-grid" id="collectionGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="Full_Collections_Page.js?v=1"></script>
+</body>
+</html>

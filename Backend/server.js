@@ -12,8 +12,9 @@ const frontendDir = path.join(__dirname, "..", "Frontend");
 app.use(express.json());
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const isAllowedLocalOrigin = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-  if (!origin || origin === "http://localhost:3000") {
+  if (isAllowedLocalOrigin) {
     res.setHeader("Access-Control-Allow-Origin", origin || "*");
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Outing | ChicagoInsider</title>
-  <link rel="stylesheet" href="Outings_Creations_Page.css?v=21" />
+  <link rel="stylesheet" href="Outings_Creations_Page.css?v=25" />
 </head>
 <body>
   <div class="creation-shell">
@@ -32,7 +32,7 @@
             <path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.16-1.16"></path>
           </svg>
         </button>
-        <button class="avatar-pill" type="button">B</button>
+        <a class="avatar-pill" href="Profile_Page.html" aria-label="Open profile">B</a>
       </div>
 
       <div class="menu-row">
@@ -99,7 +99,7 @@
             </datalist>
           </label>
         </div>
-        <div class="canvas-drop-zone"></div>
+        <div class="canvas-drop-zone" id="canvasDropZone" aria-label="Workspace drop zone"></div>
       </section>
 
       <aside class="details-pane" aria-label="Outing details">
@@ -114,16 +114,17 @@
           <h2>Contributors
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           </h2>
-          <div class="contributors-card">
-            <button type="button">Ben <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></button>
-            <button type="button">Trevor <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span></button>
-            <button type="button">Add New Contributors <span>⊞</span></button>
+          <div class="contributors-card" id="contributorsCard">
+            <button class="add-contributor-button" id="addContributorPanelBtn" type="button">
+              Add New Contributors
+              <span aria-hidden="true">+</span>
+            </button>
           </div>
         </section>
 
         <section>
           <h2>Budget Estimate <span class="money-icon">$</span></h2>
-          <div class="budget-card"></div>
+          <div class="budget-card" id="budgetCard"></div>
         </section>
       </aside>
     </main>
@@ -137,6 +138,10 @@
         <label for="shareUsernameInput">Username</label>
         <div class="share-input-row">
           <input id="shareUsernameInput" type="text" placeholder="ben, trevor, alex..." autocomplete="off" />
+          <select id="shareRoleSelect" aria-label="Contributor privilege">
+            <option value="editor">Can edit</option>
+            <option value="viewer">Can view</option>
+          </select>
           <button id="addShareUserBtn" type="button">Share</button>
         </div>
         <div class="share-results" id="shareResults"></div>
@@ -144,6 +149,6 @@
       </section>
     </div>
   </div>
-  <script src="Outings_Creations_Page.js?v=18"></script>
+  <script src="Outings_Creations_Page.js?v=22"></script>
 </body>
 </html>

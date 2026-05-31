@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile | ChicagoInsider</title>
+  <link rel="stylesheet" href="Profile_Page.css?v=1" />
+</head>
+<body>
+  <div class="profile-shell">
+    <header class="profile-header">
+      <nav class="profile-nav" aria-label="Profile navigation">
+        <a class="brand" href="Home_Page.html" aria-label="ChicagoInsider home">
+          <img class="city-logo" src="assets/chicago-logo.svg" alt="" />
+        </a>
+        <a href="Home_Page.html">Home</a>
+        <a href="Plan_Outings.html">Outings</a>
+        <a href="Full_Collections_Page.html">Collections</a>
+      </nav>
+
+      <h1>Profile</h1>
+
+      <a class="profile-pill" href="Outings_Creations_Page.html">New Outing</a>
+    </header>
+
+    <main class="profile-main">
+      <section class="identity-panel" aria-label="Account summary">
+        <div class="avatar">B</div>
+        <div>
+          <p class="eyebrow">ChicagoInsider member</p>
+          <h2>Ben</h2>
+          <p class="profile-copy">Curating Chicago plans around rooftops, walkable neighborhoods, museums, and low-friction group outings.</p>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="Profile stats">
+        <article class="stat-card">
+          <span id="savedCount">0</span>
+          <p>Saved Places</p>
+        </article>
+        <article class="stat-card">
+          <span id="outingCount">0</span>
+          <p>Saved Outings</p>
+        </article>
+        <article class="stat-card">
+          <span id="workspaceCount">0</span>
+          <p>Workspace Stops</p>
+        </article>
+      </section>
+
+      <section class="profile-grid">
+        <article class="profile-card">
+          <div class="card-heading">
+            <h2>Saved Collections</h2>
+            <a href="Full_Collections_Page.html">Browse</a>
+          </div>
+          <div class="saved-list" id="savedPlacesList"></div>
+        </article>
+
+        <article class="profile-card">
+          <div class="card-heading">
+            <h2>Preferences</h2>
+          </div>
+          <div class="preference-list">
+            <label>
+              Favorite neighborhood
+              <select id="neighborhoodPreference">
+                <option>Downtown</option>
+                <option>River North</option>
+                <option>West Loop</option>
+                <option>Wicker Park</option>
+                <option>Lincoln Park</option>
+              </select>
+            </label>
+            <label>
+              Default vibe
+              <select id="vibePreference">
+                <option>Scenic</option>
+                <option>Romantic</option>
+                <option>Casual</option>
+                <option>Hidden</option>
+                <option>Foodie</option>
+              </select>
+            </label>
+            <label>
+              Budget comfort
+              <select id="budgetPreference">
+                <option>Free - $$</option>
+                <option>$$</option>
+                <option>$$ - $$$</option>
+                <option>Any budget</option>
+              </select>
+            </label>
+          </div>
+        </article>
+
+        <article class="profile-card wide-card">
+          <div class="card-heading">
+            <h2>Recent Outing Activity</h2>
+            <a href="Plan_Outings.html">Open planner</a>
+          </div>
+          <div class="activity-list" id="activityList"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="Profile_Page.js?v=1"></script>
+</body>
+</html>

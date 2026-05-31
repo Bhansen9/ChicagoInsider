@@ -13,16 +13,24 @@ const outingMapPreview = document.querySelector("#outingMapPreview");
 const shareDialog = document.querySelector("#shareDialog");
 const closeShareDialogBtn = document.querySelector("#closeShareDialogBtn");
 const shareUsernameInput = document.querySelector("#shareUsernameInput");
+const shareRoleSelect = document.querySelector("#shareRoleSelect");
 const addShareUserBtn = document.querySelector("#addShareUserBtn");
 const shareResults = document.querySelector("#shareResults");
 const sharedUsers = document.querySelector("#sharedUsers");
+const contributorsCard = document.querySelector("#contributorsCard");
+const addContributorPanelBtn = document.querySelector("#addContributorPanelBtn");
+const budgetCard = document.querySelector("#budgetCard");
+const canvasDropZone = document.querySelector("#canvasDropZone");
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
+const workspaceStorageKey = "chicagoInsider.workspacePlaces";
+const contributorsStorageKey = "chicagoInsider.contributors";
 
-const API_BASE_URL =
-  window.location.protocol === "file:" || window.location.host !== "localhost:3000"
-    ? "http://localhost:3000"
-    : "";
+const isBackendOrigin =
+  ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
 
 const allPlaces = [
   {
@@ -124,11 +132,12 @@ const allPlaces = [
 ];
 
 let playbookPlaces = loadPlaybookPlaces();
+let workspacePlaces = loadWorkspacePlaces();
 let outingMap;
 let googleMapsPromise;
 let mapMarkers = [];
 let activeInfoWindow;
-let sharedUsernames = [];
+let contributors = loadContributors();
 const mockUsers = ["ben", "trevor", "alex", "jordan"];
 let undoStack = [];
 let redoStack = [];
@@ -150,7 +159,8 @@ function captureOutingState() {
     date: outingDateInput.value,
     timeframe: timeframeSelect.value,
     playbookPlaceIds: playbookPlaces.map((place) => place.id),
-    sharedUsernames: [...sharedUsernames]
+    workspacePlaceIds: workspacePlaces.map((place) => place.id),
+    contributors: contributors.map((contributor) => ({ ...contributor }))
   };
 }
 
@@ -174,12 +184,20 @@ function applyOutingState(state) {
   playbookPlaces = state.playbookPlaceIds
     .map((placeId) => allPlaces.find((place) => place.id === placeId))
     .filter(Boolean);
-  sharedUsernames = [...state.sharedUsernames];
+  workspacePlaces = (state.workspacePlaceIds || [])
+    .map((placeId) => allPlaces.find((place) => place.id === placeId))
+    .filter(Boolean);
+  contributors = normalizeContributors(state.contributors);
   savePlaybookPlaces();
+  saveWorkspacePlaces();
+  saveContributors();
   renderPlaybook();
+  renderWorkspace();
   renderPlaybookMap();
   renderShareResults();
   renderSharedUsers();
+  renderContributors();
+  renderBudgetEstimate();
   syncOutingTitleStyle();
   isApplyingHistory = false;
 }
@@ -223,6 +241,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function titleCase(value) {
+  return String(value || "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function formatOutingDate(dateValue) {
   const [year, month, day] = dateValue.split("-").map(Number);
   const date = new Date(year, month - 1, day);
@@ -251,9 +275,66 @@ function loadPlaybookPlaces() {
   }
 }
 
+function loadWorkspacePlaces() {
+  try {
+    const savedIds = JSON.parse(localStorage.getItem(workspaceStorageKey) || "null");
+    if (!Array.isArray(savedIds)) return [];
+
+    return savedIds
+      .map((placeId) => allPlaces.find((place) => place.id === placeId))
+      .filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
+function normalizeContributors(value) {
+  const fallback = [
+    { username: "ben", role: "owner" },
+    { username: "trevor", role: "viewer" }
+  ];
+
+  if (!Array.isArray(value)) return fallback;
+
+  const roleSet = new Set(["owner", "editor", "viewer"]);
+  const contributorsByName = new Map();
+  value.forEach((item) => {
+    const username = String(item?.username || item || "").trim().toLowerCase();
+    if (!username) return;
+    const role = roleSet.has(item?.role) ? item.role : "viewer";
+    contributorsByName.set(username, { username, role });
+  });
+
+  return contributorsByName.size ? [...contributorsByName.values()] : fallback;
+}
+
+function loadContributors() {
+  try {
+    return normalizeContributors(JSON.parse(localStorage.getItem(contributorsStorageKey) || "null"));
+  } catch (error) {
+    return normalizeContributors();
+  }
+}
+
 function savePlaybookPlaces() {
   try {
     localStorage.setItem(playbookStorageKey, JSON.stringify(playbookPlaces.map((place) => place.id)));
+  } catch (error) {
+    // Some browser modes can block localStorage.
+  }
+}
+
+function saveWorkspacePlaces() {
+  try {
+    localStorage.setItem(workspaceStorageKey, JSON.stringify(workspacePlaces.map((place) => place.id)));
+  } catch (error) {
+    // Some browser modes can block localStorage.
+  }
+}
+
+function saveContributors() {
+  try {
+    localStorage.setItem(contributorsStorageKey, JSON.stringify(contributors));
   } catch (error) {
     // Some browser modes can block localStorage.
   }
@@ -265,6 +346,7 @@ function updatePlaybookPlaces(nextPlaces, shouldRecordHistory = true) {
   savePlaybookPlaces();
   renderPlaybook();
   renderPlaybookMap();
+  renderBudgetEstimate();
 }
 
 function currentOutingSnapshot() {
@@ -274,7 +356,8 @@ function currentOutingSnapshot() {
     date: outingDateInput.value,
     timeframe: timeframeSelect.value,
     playbookPlaceIds: playbookPlaces.map((place) => place.id),
-    sharedWith: sharedUsernames,
+    workspacePlaceIds: workspacePlaces.map((place) => place.id),
+    contributors,
     savedAt: new Date().toISOString()
   };
 }
@@ -296,11 +379,17 @@ function startNewOuting() {
   outingDateInput.value = new Date().toISOString().slice(0, 10);
   timeframeSelect.value = "Evening: 5 PM - 9 PM";
   playbookPlaces = [];
-  sharedUsernames = [];
+  workspacePlaces = [];
+  contributors = normalizeContributors();
   savePlaybookPlaces();
+  saveWorkspacePlaces();
+  saveContributors();
   syncOutingTitleStyle();
   renderPlaybook();
+  renderWorkspace();
   renderPlaybookMap();
+  renderContributors();
+  renderBudgetEstimate();
   renderSharedUsers();
 }
 
@@ -336,9 +425,15 @@ function deleteCurrentOuting() {
   outingTitleInput.value = "Untitled Outing";
   outingDateInput.value = new Date().toISOString().slice(0, 10);
   timeframeSelect.value = "Evening: 5 PM - 9 PM";
-  sharedUsernames = [];
+  contributors = normalizeContributors();
+  workspacePlaces = [];
+  saveContributors();
+  saveWorkspacePlaces();
   updatePlaybookPlaces([], false);
+  renderWorkspace();
   renderSharedUsers();
+  renderContributors();
+  renderBudgetEstimate();
   syncOutingTitleStyle();
 }
 
@@ -346,6 +441,7 @@ function openShareDialog() {
   shareDialog.classList.add("open");
   shareDialog.setAttribute("aria-hidden", "false");
   shareUsernameInput.value = "";
+  shareRoleSelect.value = "editor";
   renderShareResults();
   renderSharedUsers();
   window.setTimeout(() => shareUsernameInput.focus(), 0);
@@ -357,21 +453,55 @@ function closeShareDialog() {
 }
 
 function addSharedUser(username) {
-  if (!username || sharedUsernames.includes(username)) return;
+  const cleanedUsername = String(username || "").trim().toLowerCase();
+  if (!cleanedUsername) return;
+  const shareRole = shareRoleSelect.value === "editor" ? "editor" : "viewer";
+
   pushUndoState();
-  sharedUsernames = [...sharedUsernames, username];
+  const existingContributor = contributors.find((item) => item.username === cleanedUsername);
+  if (existingContributor) {
+    if (existingContributor.role !== "owner") existingContributor.role = shareRole;
+  } else {
+    contributors = [...contributors, { username: cleanedUsername, role: shareRole }];
+  }
+
   shareUsernameInput.value = "";
+  saveContributors();
   saveCurrentOuting();
   renderShareResults();
   renderSharedUsers();
+  renderContributors();
 }
 
 function removeSharedUser(username) {
+  const cleanedUsername = String(username || "").trim().toLowerCase();
+  if (cleanedUsername === "ben") return;
+
   pushUndoState();
-  sharedUsernames = sharedUsernames.filter((item) => item !== username);
+  contributors = contributors.filter((item) => item.username !== cleanedUsername);
+  saveContributors();
   saveCurrentOuting();
   renderSharedUsers();
   renderShareResults();
+  renderContributors();
+}
+
+function updateContributorRole(username, role) {
+  const contributor = contributors.find((item) => item.username === username);
+  if (!contributor || contributor.role === "owner") {
+    renderContributors();
+    renderSharedUsers();
+    return;
+  }
+
+  pushUndoState();
+  contributors = contributors.map((contributor) => (
+    contributor.username === username ? { ...contributor, role } : contributor
+  ));
+  saveContributors();
+  saveCurrentOuting();
+  renderContributors();
+  renderSharedUsers();
 }
 
 function renderShareResults() {
@@ -382,7 +512,7 @@ function renderShareResults() {
   }
 
   const matches = mockUsers.filter((username) => (
-    username.includes(query) && !sharedUsernames.includes(username)
+    username.includes(query) && !contributors.some((contributor) => contributor.username === username)
   ));
 
   shareResults.innerHTML = matches.length
@@ -396,14 +526,52 @@ function renderShareResults() {
 }
 
 function renderSharedUsers() {
-  sharedUsers.innerHTML = sharedUsernames.length
-    ? sharedUsernames.map((username) => `
+  sharedUsers.innerHTML = contributors.length
+    ? contributors.map(({ username, role }) => `
       <div class="shared-user">
-        <span>${escapeHtml(username)}</span>
-        <button type="button" data-remove-share-user="${escapeHtml(username)}">Remove</button>
+        <span>${escapeHtml(username)} - ${escapeHtml(roleLabel(role))}</span>
+        <button type="button" data-remove-share-user="${escapeHtml(username)}" ${username === "ben" ? "disabled" : ""}>Remove</button>
       </div>
     `).join("")
     : `<div class="shared-user"><span>No users shared yet</span></div>`;
+}
+
+function roleLabel(role) {
+  return {
+    owner: "Owner",
+    editor: "Can edit",
+    viewer: "Can view"
+  }[role] || "Can view";
+}
+
+function roleIcon(role) {
+  if (role === "owner" || role === "editor") {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`;
+  }
+
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+}
+
+function renderContributors() {
+  const addButton = `
+    <button class="add-contributor-button" id="addContributorPanelBtn" type="button">
+      Add New Contributors
+      <span aria-hidden="true">+</span>
+    </button>
+  `;
+
+  contributorsCard.innerHTML = contributors.map(({ username, role }) => `
+    <div class="contributor-row">
+      <span class="contributor-name">${escapeHtml(titleCase(username))}</span>
+      <span class="contributor-role-icon">${roleIcon(role)}</span>
+      <select data-contributor-role="${escapeHtml(username)}" aria-label="${escapeHtml(username)} privilege" ${role === "owner" ? "disabled" : ""}>
+        <option value="owner" ${role === "owner" ? "selected" : ""}>Owner</option>
+        <option value="editor" ${role === "editor" ? "selected" : ""}>Can edit</option>
+        <option value="viewer" ${role === "viewer" ? "selected" : ""}>Can view</option>
+      </select>
+      <button class="remove-contributor-button" type="button" data-remove-contributor="${escapeHtml(username)}" aria-label="Remove ${escapeHtml(username)}" ${username === "ben" ? "disabled" : ""}>x</button>
+    </div>
+  `).join("") + addButton;
 }
 
 function playbookCard(place) {
@@ -415,6 +583,7 @@ function playbookCard(place) {
       data-place-id="${escapeHtml(place.id)}"
       data-lat="${escapeHtml(place.coordinates.lat)}"
       data-lng="${escapeHtml(place.coordinates.lng)}"
+      draggable="true"
     >
       <span class="tag">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
       <h3>${escapeHtml(place.name)}</h3>
@@ -445,6 +614,107 @@ function renderPlaybook() {
       </button>`;
 }
 
+function workspaceCard(place, index) {
+  return `
+    <article class="workspace-place-card" data-workspace-place-id="${escapeHtml(place.id)}">
+      <div class="workspace-place-order">${index + 1}</div>
+      <div>
+        <h3>${escapeHtml(place.name)}</h3>
+        <p>${escapeHtml(place.neighborhood)} | ${escapeHtml(place.timeWindow)}</p>
+      </div>
+      <span>${escapeHtml(place.price)}</span>
+      <button type="button" data-remove-workspace-place="${escapeHtml(place.id)}" aria-label="Remove ${escapeHtml(place.name)}">x</button>
+    </article>
+  `;
+}
+
+function renderWorkspace() {
+  if (!workspacePlaces.length) {
+    canvasDropZone.innerHTML = `
+      <div class="workspace-empty-state">
+        <strong>Drop places here</strong>
+        <span>Drag cards from Collections Playbook into this workspace.</span>
+      </div>
+    `;
+    return;
+  }
+
+  canvasDropZone.innerHTML = `
+    <div class="workspace-list">
+      ${workspacePlaces.map(workspaceCard).join("")}
+    </div>
+  `;
+}
+
+function addPlaceToWorkspace(placeId, shouldRecordHistory = true) {
+  const place = allPlaces.find((item) => item.id === placeId);
+  if (!place || workspacePlaces.some((item) => item.id === placeId)) return;
+
+  if (shouldRecordHistory) pushUndoState();
+  workspacePlaces = [...workspacePlaces, place];
+  saveWorkspacePlaces();
+  renderWorkspace();
+  renderBudgetEstimate();
+  saveCurrentOuting();
+}
+
+function removePlaceFromWorkspace(placeId) {
+  if (!workspacePlaces.some((place) => place.id === placeId)) return;
+
+  pushUndoState();
+  workspacePlaces = workspacePlaces.filter((place) => place.id !== placeId);
+  saveWorkspacePlaces();
+  renderWorkspace();
+  renderBudgetEstimate();
+  saveCurrentOuting();
+}
+
+function priceRangeForPlace(place) {
+  const ranges = {
+    Free: [0, 0],
+    "$": [10, 25],
+    "$$": [25, 60],
+    "$$$": [60, 120]
+  };
+
+  return ranges[place.price] || [20, 50];
+}
+
+function renderBudgetEstimate() {
+  const budgetPlaces = workspacePlaces;
+  const [lowTotal, highTotal] = budgetPlaces.reduce((totals, place) => {
+    const [low, high] = priceRangeForPlace(place);
+    return [totals[0] + low, totals[1] + high];
+  }, [0, 0]);
+
+  if (!budgetPlaces.length) {
+    budgetCard.innerHTML = `
+      <div class="budget-empty-state">
+        Add places to the workspace to estimate your outing cost.
+      </div>
+    `;
+    return;
+  }
+
+  budgetCard.innerHTML = `
+    <div class="budget-total">
+      <span>Estimated total</span>
+      <strong>$${lowTotal} - $${highTotal}</strong>
+    </div>
+    <div class="budget-breakdown">
+      ${budgetPlaces.map((place) => {
+        const [low, high] = priceRangeForPlace(place);
+        return `
+          <div class="budget-line">
+            <span>${escapeHtml(place.name)}</span>
+            <strong>${low === high ? "$0" : `$${low} - $${high}`}</strong>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function selectPlaybookCard(placeId) {
   document.querySelectorAll(".collection-card[data-place-id]").forEach((card) => {
     card.classList.toggle("is-map-selected", card.dataset.placeId === placeId);
@@ -455,27 +725,52 @@ async function loadGoogleMaps() {
   if (window.google?.maps) return window.google.maps;
   if (googleMapsPromise) return googleMapsPromise;
 
-  googleMapsPromise = fetch(`${API_BASE_URL}/api/config/maps`)
-    .then((response) => response.json())
+  googleMapsPromise = fetch(`${API_BASE_URL}/api/config/maps?surface=creations`)
+    .then((response) => {
+      if (!response.ok) throw new Error("Could not load Google Maps config");
+      return response.json();
+    })
     .then(({ googleMapsApiKey }) => {
       if (!googleMapsApiKey) throw new Error("Missing Google Maps API key");
 
       return new Promise((resolve, reject) => {
-        window.initOutingCreationMap = () => resolve(window.google.maps);
+        const callbackName = "initOutingCreationMap";
+        const timeout = window.setTimeout(() => {
+          reject(new Error("Google Maps timed out while loading"));
+        }, 10000);
+
+        window.gm_authFailure = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("Google Maps rejected the API key. Check API restrictions, referrers, and billing."));
+        };
+
+        window[callbackName] = () => {
+          window.clearTimeout(timeout);
+          resolve(window.google.maps);
+        };
 
         const existingScript = document.querySelector("script[data-google-maps-script]");
         if (existingScript) {
-          existingScript.addEventListener("load", () => resolve(window.google.maps), { once: true });
-          existingScript.addEventListener("error", () => reject(new Error("Google Maps failed to load")), { once: true });
+          existingScript.addEventListener("load", () => {
+            window.clearTimeout(timeout);
+            if (window.google?.maps) resolve(window.google.maps);
+          }, { once: true });
+          existingScript.addEventListener("error", () => {
+            window.clearTimeout(timeout);
+            reject(new Error("Google Maps failed to load"));
+          }, { once: true });
           return;
         }
 
         const script = document.createElement("script");
         script.dataset.googleMapsScript = "true";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&callback=initOutingCreationMap`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&callback=${callbackName}`;
         script.async = true;
         script.defer = true;
-        script.onerror = () => reject(new Error("Google Maps failed to load"));
+        script.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("Google Maps failed to load"));
+        };
         document.head.appendChild(script);
       });
     });
@@ -767,6 +1062,45 @@ collectionsList.addEventListener("click", (event) => {
   openPlaceMarker(card.dataset.placeId);
 });
 
+collectionsList.addEventListener("dragstart", (event) => {
+  const card = event.target.closest(".collection-card[data-place-id]");
+  if (!card) return;
+
+  event.dataTransfer.setData("text/plain", card.dataset.placeId);
+  event.dataTransfer.effectAllowed = "copy";
+  card.classList.add("is-dragging");
+});
+
+collectionsList.addEventListener("dragend", (event) => {
+  const card = event.target.closest(".collection-card[data-place-id]");
+  if (card) card.classList.remove("is-dragging");
+});
+
+canvasDropZone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "copy";
+  canvasDropZone.classList.add("is-drag-over");
+});
+
+canvasDropZone.addEventListener("dragleave", (event) => {
+  if (!canvasDropZone.contains(event.relatedTarget)) {
+    canvasDropZone.classList.remove("is-drag-over");
+  }
+});
+
+canvasDropZone.addEventListener("drop", (event) => {
+  event.preventDefault();
+  canvasDropZone.classList.remove("is-drag-over");
+  addPlaceToWorkspace(event.dataTransfer.getData("text/plain"));
+});
+
+canvasDropZone.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("button[data-remove-workspace-place]");
+  if (!removeButton) return;
+
+  removePlaceFromWorkspace(removeButton.dataset.removeWorkspacePlace);
+});
+
 outingMapPreview.addEventListener("click", (event) => {
   const pin = event.target.closest(".map-overlay-pin[data-place-id]");
   if (!pin) return;
@@ -790,6 +1124,23 @@ shareUsernameInput.addEventListener("keydown", (event) => {
 
 addShareUserBtn.addEventListener("click", () => {
   addSharedUser(shareUsernameInput.value.trim().toLowerCase());
+});
+
+contributorsCard.addEventListener("click", (event) => {
+  if (event.target.closest("#addContributorPanelBtn")) {
+    openShareDialog();
+    return;
+  }
+
+  const removeButton = event.target.closest("button[data-remove-contributor]");
+  if (removeButton) removeSharedUser(removeButton.dataset.removeContributor);
+});
+
+contributorsCard.addEventListener("change", (event) => {
+  const roleSelect = event.target.closest("select[data-contributor-role]");
+  if (!roleSelect) return;
+
+  updateContributorRole(roleSelect.dataset.contributorRole, roleSelect.value);
 });
 
 shareResults.addEventListener("click", (event) => {
@@ -840,18 +1191,42 @@ outingTitleInput.addEventListener("change", () => {
 });
 
 window.addEventListener("storage", (event) => {
-  if (event.key !== playbookStorageKey) return;
-  playbookPlaces = loadPlaybookPlaces();
-  renderPlaybook();
-  renderPlaybookMap();
+  if (event.key === playbookStorageKey) {
+    playbookPlaces = loadPlaybookPlaces();
+    renderPlaybook();
+    renderPlaybookMap();
+    renderBudgetEstimate();
+  }
+
+  if (event.key === workspaceStorageKey) {
+    workspacePlaces = loadWorkspacePlaces();
+    renderWorkspace();
+    renderBudgetEstimate();
+  }
+
+  if (event.key === contributorsStorageKey) {
+    contributors = loadContributors();
+    renderContributors();
+    renderSharedUsers();
+  }
 });
 
 window.addEventListener("pageshow", () => {
   playbookPlaces = loadPlaybookPlaces();
+  workspacePlaces = loadWorkspacePlaces();
+  contributors = loadContributors();
   renderPlaybook();
+  renderWorkspace();
   renderPlaybookMap();
+  renderContributors();
+  renderSharedUsers();
+  renderBudgetEstimate();
 });
 
 renderPlaybook();
+renderWorkspace();
 renderPlaybookMap();
+renderContributors();
+renderSharedUsers();
+renderBudgetEstimate();
 syncOutingTitleStyle();

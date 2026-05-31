@@ -51,10 +51,11 @@ const PLACE_IMAGE_FALLBACKS = {
   "Garfield Park Conservatory": "https://commons.wikimedia.org/wiki/Special:FilePath/Garfield%20Park%20Conservatory%20%28Chicago%29%20%2838106651681%29.jpg?width=900"
 };
 
-const API_BASE_URL =
-  window.location.protocol === "file:" || window.location.host !== "localhost:3000"
-    ? "http://localhost:3000"
-    : "";
+const isBackendOrigin =
+  ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -183,21 +184,55 @@ async function loadGoogleMaps() {
   if (window.google?.maps) return window.google.maps;
   if (googleMapsPromise) return googleMapsPromise;
 
-  googleMapsPromise = fetch(`${API_BASE_URL}/api/config/maps`)
-    .then((response) => response.json())
+  googleMapsPromise = fetch(`${API_BASE_URL}/api/config/maps?surface=home`)
+    .then((response) => {
+      if (!response.ok) throw new Error("Could not load Google Maps config");
+      return response.json();
+    })
     .then(({ googleMapsApiKey }) => {
       if (!googleMapsApiKey) {
         throw new Error("Missing Google Maps API key");
       }
 
       return new Promise((resolve, reject) => {
-        window.initChicagoLensMap = () => resolve(window.google.maps);
+        const callbackName = "initChicagoLensMap";
+        const existingScript = document.querySelector("script[data-google-maps-script]");
+
+        const timeout = window.setTimeout(() => {
+          reject(new Error("Google Maps timed out while loading"));
+        }, 10000);
+
+        window.gm_authFailure = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("Google Maps rejected the API key. Check API restrictions, referrers, and billing."));
+        };
+
+        window[callbackName] = () => {
+          window.clearTimeout(timeout);
+          resolve(window.google.maps);
+        };
+
+        if (existingScript) {
+          existingScript.addEventListener("load", () => {
+            window.clearTimeout(timeout);
+            if (window.google?.maps) resolve(window.google.maps);
+          }, { once: true });
+          existingScript.addEventListener("error", () => {
+            window.clearTimeout(timeout);
+            reject(new Error("Google Maps failed to load"));
+          }, { once: true });
+          return;
+        }
 
         const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&callback=initChicagoLensMap`;
+        script.dataset.googleMapsScript = "true";
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&callback=${callbackName}`;
         script.async = true;
         script.defer = true;
-        script.onerror = () => reject(new Error("Google Maps failed to load"));
+        script.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error("Google Maps failed to load"));
+        };
         document.head.appendChild(script);
       });
     });
@@ -266,7 +301,7 @@ async function updateMapMarkers(places = []) {
     }
   } catch (error) {
     console.error(error);
-    mapPreview.textContent = "Add a Google Maps API key to enable the map.";
+    mapPreview.textContent = "Google Maps could not load. Check the API key settings and restart the server.";
   }
 }
 
