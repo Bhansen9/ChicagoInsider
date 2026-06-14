@@ -13,8 +13,17 @@ const collectionFilterMenu = document.querySelector("#collectionFilterMenu");
 const outingFilterMenu = document.querySelector("#outingFilterMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
+const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
 
-const places = [
+function resolveAssetUrl(url) {
+  if (!url || !url.startsWith("/")) return url;
+  return `${API_BASE_URL}${url}`;
+}
+
+let places = [
   {
     id: "art-institute",
     name: "The Art Institute of Chicago",
@@ -105,7 +114,7 @@ const places = [
   }
 ];
 
-const outings = [
+let outings = [
   {
     id: "thrifting",
     title: "Thrifting Adventure",
@@ -143,6 +152,49 @@ const outings = [
     images: [places[0].image, places[6].image, places[1].image]
   }
 ];
+
+function buildOutings() {
+  const imageAt = (index) => resolveAssetUrl(places[index % places.length]?.image || places[index % places.length]?.imageUrl || "assets/pixel-chicago-hero.png");
+
+  return [
+    {
+      id: "google-food-loop",
+      title: "Google Places Food Run",
+      filter: "adventure",
+      location: places[0]?.neighborhood || "Chicago",
+      duration: "Built from live Chicago places",
+      time: "Next weekend - 1:00 PM - 5:00 PM",
+      images: [imageAt(0), imageAt(1), imageAt(2)]
+    },
+    {
+      id: "google-date-night",
+      title: "Date Night",
+      filter: "date",
+      location: places[3]?.neighborhood || "Chicago",
+      duration: "Add new members?",
+      time: "Next Friday - 5:00 PM - 10:00 PM",
+      images: [imageAt(3), imageAt(4), imageAt(5)]
+    },
+    {
+      id: "google-bar-crawl",
+      title: "Chicago Night Out",
+      filter: "birthday",
+      location: places[6]?.neighborhood || "Chicago",
+      duration: "Add new members?",
+      time: "Saturday - 8:00 PM - 12:00 AM",
+      images: [imageAt(6), imageAt(7), imageAt(8)]
+    },
+    {
+      id: "google-museum-day",
+      title: "Museum & Views",
+      filter: "adventure",
+      location: places[9]?.neighborhood || "Chicago",
+      duration: "Quiet afternoon plan",
+      time: "Sunday - 11:00 AM - 4:00 PM",
+      images: [imageAt(9), imageAt(10), imageAt(11)]
+    }
+  ];
+}
 
 let activeCollectionFilter = "all";
 let activeOutingFilter = "all";
@@ -200,11 +252,12 @@ function matchesSearch(item, query) {
 }
 
 function placeTile(place) {
+  const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
   return `
     <article class="spot-tile" draggable="true" data-place-id="${escapeHtml(place.id)}">
       <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
       <h4>${escapeHtml(place.name)}</h4>
-      <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
       <p>${escapeHtml(place.description)}</p>
       <div class="spot-meta">${escapeHtml(place.note)}</div>
     </article>
@@ -212,16 +265,38 @@ function placeTile(place) {
 }
 
 function playbookCard(place, index) {
+  const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
   return `
     <article class="playbook-card" data-playbook-index="${index}">
       <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
       <h4>${escapeHtml(place.name)}</h4>
-      <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
       <p>${escapeHtml(place.neighborhood)}</p>
       <p>${escapeHtml(place.note)}</p>
       <button class="remove-stop" type="button" aria-label="Remove ${escapeHtml(place.name)}">Remove</button>
     </article>
   `;
+}
+
+function normalizeApiPlace(place) {
+  return {
+    ...place,
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+    note: place.note || (place.vibes || []).join(", "),
+    type: place.type || String(place.category || "activity").toLowerCase()
+  };
+}
+
+async function loadPlacesFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load Google Places");
+
+  const data = await response.json();
+  if (!Array.isArray(data.places) || !data.places.length) return;
+
+  places = data.places.map(normalizeApiPlace);
+  outings = buildOutings();
+  playbookPlaces = loadPlaybookPlaces();
 }
 
 function outingCard(outing) {
@@ -447,16 +522,18 @@ setActiveMenuButton(outingFilterMenu, activeOutingFilter);
 
 function initializePlannerPage() {
   if (!skeletons) {
-    renderCollections();
-    renderOutings();
-    renderPlaybook();
+    loadPlacesFromApi().catch(console.error).finally(() => {
+      renderCollections();
+      renderOutings();
+      renderPlaybook();
+    });
     return;
   }
 
   skeletons.showSpotTiles(collectionGrid, 6);
   skeletons.showOutingCards(outingGrid, 3);
   skeletons.showPlaybookCards(playbookList, 2);
-  window.requestAnimationFrame(() => {
+  loadPlacesFromApi().catch(console.error).finally(() => {
     renderCollections();
     renderOutings();
     renderPlaybook();

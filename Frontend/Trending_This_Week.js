@@ -3,8 +3,17 @@ const savedTrendCount = document.querySelector("#savedTrendCount");
 const trendTabs = document.querySelectorAll(".trend-tab");
 const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
+const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
 
-const trendingPlaces = [
+function resolveAssetUrl(url) {
+  if (!url || !url.startsWith("/")) return url;
+  return `${API_BASE_URL}${url}`;
+}
+
+let trendingPlaces = [
   {
     id: "cindy",
     rank: 1,
@@ -116,28 +125,56 @@ function escapeHtml(value) {
 
 function renderTrendCard(place) {
   const isSaved = savedPlaceIds.includes(place.id);
+  const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
+  const heat = place.heat || (place.rating ? `${Number(place.rating).toFixed(1)} on Google` : "Chicago pick");
+  const reason = place.reason || place.description || "A Google Places result inside Chicago.";
+  const bestFor = place.bestFor || (place.note ? place.note : "Chicago plans");
 
   return `
     <article class="trend-card">
       <div class="trend-image-wrap">
-        <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
         <span class="rank-badge">#${place.rank}</span>
       </div>
       <div class="trend-card-body">
         <div class="trend-topline">
           <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
-          <span class="heat">${escapeHtml(place.heat)}</span>
+          <span class="heat">${escapeHtml(heat)}</span>
         </div>
         <h2>${escapeHtml(place.name)}</h2>
         <p class="neighborhood">${escapeHtml(place.neighborhood)}</p>
-        <p class="reason">${escapeHtml(place.reason)}</p>
-        <p class="best-for">${escapeHtml(place.bestFor)}</p>
+        <p class="reason">${escapeHtml(reason)}</p>
+        <p class="best-for">${escapeHtml(bestFor)}</p>
         <button class="save-trend ${isSaved ? "is-saved" : ""}" type="button" data-place-id="${escapeHtml(place.id)}">
           ${isSaved ? "Saved" : "Save Spot"}
         </button>
       </div>
     </article>
   `;
+}
+
+async function loadTrendingPlacesFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load Google Places");
+
+  const data = await response.json();
+  if (!Array.isArray(data.places) || !data.places.length) return;
+
+  trendingPlaces = data.places
+    .slice()
+    .sort((a, b) => (
+      (Number(b.rating) || 0) - (Number(a.rating) || 0) ||
+      (Number(b.userRatingCount) || 0) - (Number(a.userRatingCount) || 0)
+    ))
+    .slice(0, 8)
+    .map((place, index) => ({
+      ...place,
+      rank: index + 1,
+      image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+      heat: place.rating ? `${Number(place.rating).toFixed(1)} on Google` : "Chicago pick",
+      reason: place.description || "A Google Places result inside Chicago.",
+      bestFor: place.note || "Chicago plans"
+    }));
 }
 
 function renderTrends() {
@@ -176,13 +213,13 @@ trendGrid.addEventListener("click", (event) => {
 
 function initializeTrendingPage() {
   if (!skeletons) {
-    renderTrends();
+    loadTrendingPlacesFromApi().catch(console.error).finally(renderTrends);
     return;
   }
 
   skeletons.showTrendCards(trendGrid, 6);
   skeletons.showStat(savedTrendCount);
-  window.requestAnimationFrame(renderTrends);
+  loadTrendingPlacesFromApi().catch(console.error).finally(renderTrends);
 }
 
 initializeTrendingPage();

@@ -7,13 +7,22 @@ const neighborhoodPreference = document.querySelector("#neighborhoodPreference")
 const vibePreference = document.querySelector("#vibePreference");
 const budgetPreference = document.querySelector("#budgetPreference");
 const skeletons = window.ChicagoInsiderSkeletons;
+const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
+
+function resolveAssetUrl(url) {
+  if (!url || !url.startsWith("/")) return url;
+  return `${API_BASE_URL}${url}`;
+}
 
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
 const workspaceStorageKey = "chicagoInsider.workspacePlaces";
 const profilePreferenceStorageKey = "chicagoInsider.profilePreferences";
 
-const places = [
+let places = [
   {
     id: "millennium",
     name: "Millennium Park",
@@ -95,6 +104,23 @@ const places = [
     image: "https://cdn.prod.website-files.com/692deee1433d0acae210e525/6930b2963bc306834dd9c99c_Daniel%20Kelleghan%20Photography-2024-03-25%20Cindys57247-HDR.avif"
   }
 ];
+
+function normalizeApiPlace(place) {
+  return {
+    ...place,
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png")
+  };
+}
+
+async function loadPlacesFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load Google Places");
+
+  const data = await response.json();
+  if (!Array.isArray(data.places) || !data.places.length) return;
+
+  places = data.places.map(normalizeApiPlace);
+}
 
 function readJson(key, fallback) {
   try {
@@ -197,14 +223,14 @@ function renderProfile() {
 
 function initializeProfilePage() {
   if (!skeletons) {
-    renderProfile();
+    loadPlacesFromApi().catch(console.error).finally(renderProfile);
     return;
   }
 
   [savedCount, outingCount, workspaceCount].forEach((counter) => skeletons.showStat(counter));
   skeletons.showSavedItems(savedPlacesList, 3);
   skeletons.showActivityItems(activityList, 3);
-  window.requestAnimationFrame(renderProfile);
+  loadPlacesFromApi().catch(console.error).finally(renderProfile);
 }
 
 initializeProfilePage();

@@ -1,4 +1,4 @@
-const { recommendPlaces } = require("../services/recommendationService");
+const { searchChicagoPlaces } = require("../services/googlePlacesService");
 const { parseUserRequest } = require("../services/openaiService");
 
 async function getRecommendations(req, res, next) {
@@ -13,7 +13,10 @@ async function getRecommendations(req, res, next) {
       }
     });
 
-    const recommendations = recommendPlaces(combinedFilters);
+    const recommendations = await searchChicagoPlaces(
+      { ...combinedFilters, prompt: filters.prompt },
+      { limit: 6 }
+    );
 
     res.json({
       parsedFilters: combinedFilters,

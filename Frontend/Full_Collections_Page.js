@@ -6,8 +6,17 @@ const collectionSortBtn = document.querySelector("#collectionSortBtn");
 const collectionSortMenu = document.querySelector("#collectionSortMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
+const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
+const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
+  ? "http://localhost:3000"
+  : "";
 
-const places = [
+function resolveAssetUrl(url) {
+  if (!url || !url.startsWith("/")) return url;
+  return `${API_BASE_URL}${url}`;
+}
+
+let places = [
   {
     id: "millennium",
     name: "Millennium Park",
@@ -189,26 +198,47 @@ function sortedPlaces(nextPlaces) {
 
 function cardForPlace(place) {
   const isSaved = savedPlaceIds.includes(place.id);
+  const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
+  const note = place.note || (place.vibes || []).join(", ") || "Google Places result";
 
   return `
     <article class="place-card">
-      <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
       <div class="place-card-body">
         <div class="place-card-topline">
           <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
-          <span class="rating"><span class="stars">*****</span> ${place.rating.toFixed(1)}</span>
+          <span class="rating"><span class="stars">*****</span> ${Number(place.rating || 0).toFixed(1)}</span>
         </div>
         <h2>${escapeHtml(place.name)}</h2>
         <p class="neighborhood">${escapeHtml(place.neighborhood)}</p>
         <p class="description">${escapeHtml(place.description)}</p>
-        <p class="source-note">From the curated Chicago places list.</p>
-        <p class="vibes">${escapeHtml(place.note)}</p>
+        <p class="source-note">From Google Places in Chicago.</p>
+        <p class="vibes">${escapeHtml(note)}</p>
         <button class="save-spot ${isSaved ? "is-saved" : ""}" type="button" data-place-id="${escapeHtml(place.id)}">
           ${isSaved ? "Saved" : "Save Spot"}
         </button>
       </div>
     </article>
   `;
+}
+
+function normalizeApiPlace(place) {
+  return {
+    ...place,
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+    type: place.type || String(place.category || "activity").toLowerCase(),
+    note: place.note || (place.vibes || []).join(", ")
+  };
+}
+
+async function loadPlacesFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load Google Places");
+
+  const data = await response.json();
+  if (!Array.isArray(data.places) || !data.places.length) return;
+
+  places = data.places.map(normalizeApiPlace);
 }
 
 function renderCollections() {
@@ -293,12 +323,12 @@ setActiveMenuButton(collectionSortMenu, "sort", activeSort);
 
 function initializeCollectionsPage() {
   if (!skeletons) {
-    renderCollections();
+    loadPlacesFromApi().catch(console.error).finally(renderCollections);
     return;
   }
 
   skeletons.showCollectionCards(collectionGrid, 8);
-  window.requestAnimationFrame(renderCollections);
+  loadPlacesFromApi().catch(console.error).finally(renderCollections);
 }
 
 initializeCollectionsPage();

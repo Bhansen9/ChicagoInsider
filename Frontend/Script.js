@@ -164,11 +164,11 @@ function usePlaceImageFallback(image) {
 window.usePlaceImageFallback = usePlaceImageFallback;
 
 function placeImageUrl(place) {
-  if (!place.imageUrl || place.imageUrl.startsWith("/api/places/photo")) {
+  if (!place.imageUrl && !place.image) {
     return PLACE_IMAGE_FALLBACKS[place.name] || PLACE_IMAGE_FALLBACKS["Chicago Riverwalk"];
   }
 
-  return resolveAssetUrl(place.imageUrl);
+  return resolveAssetUrl(place.imageUrl || place.image);
 }
 
 function renderLoading(message = "Finding Chicago spots...") {

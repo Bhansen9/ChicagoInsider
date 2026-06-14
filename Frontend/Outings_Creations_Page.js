@@ -33,7 +33,12 @@ const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
   ? "http://localhost:3000"
   : "";
 
-const allPlaces = [
+function resolveAssetUrl(url) {
+  if (!url || !url.startsWith("/")) return url;
+  return `${API_BASE_URL}${url}`;
+}
+
+let allPlaces = [
   {
     id: "art-institute",
     name: "The Art Institute of Chicago",
@@ -131,6 +136,32 @@ const allPlaces = [
     coordinates: { lat: 41.8817, lng: -87.6247 }
   }
 ];
+
+function normalizeApiPlace(place) {
+  const coordinates = place.coordinates || { lat: 41.8781, lng: -87.6298 };
+
+  return {
+    ...place,
+    id: place.id || place.googlePlaceId || String(place.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+    website: place.website || place.websiteUri || place.googleMapsUri || "Google Places",
+    timeWindow: place.timeWindow || "Hours vary",
+    note: place.note || (place.vibes || []).join(", ") || "Google Places result",
+    coordinates
+  };
+}
+
+async function loadPlacesFromApi() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load Google Places");
+
+  const data = await response.json();
+  if (!Array.isArray(data.places) || !data.places.length) return;
+
+  allPlaces = data.places.map(normalizeApiPlace);
+  playbookPlaces = loadPlaybookPlaces();
+  workspacePlaces = loadWorkspacePlaces();
+}
 
 let playbookPlaces = loadPlaybookPlaces();
 let workspacePlaces = loadWorkspacePlaces();
@@ -1268,15 +1299,19 @@ window.addEventListener("pageshow", () => {
   renderBudgetEstimate();
 });
 
+async function renderCreationPage() {
+  renderPlaybook();
+  renderWorkspace();
+  renderPlaybookMap();
+  renderContributors();
+  renderSharedUsers();
+  renderBudgetEstimate();
+  syncOutingTitleStyle();
+}
+
 function initializeCreationPage() {
   if (!skeletons) {
-    renderPlaybook();
-    renderWorkspace();
-    renderPlaybookMap();
-    renderContributors();
-    renderSharedUsers();
-    renderBudgetEstimate();
-    syncOutingTitleStyle();
+    loadPlacesFromApi().catch(console.error).finally(renderCreationPage);
     return;
   }
 
@@ -1285,15 +1320,7 @@ function initializeCreationPage() {
   skeletons.showMap(outingMapPreview);
   skeletons.showContributors(contributorsCard, 3);
   skeletons.showBudget(budgetCard);
-  window.requestAnimationFrame(() => {
-    renderPlaybook();
-    renderWorkspace();
-    renderPlaybookMap();
-    renderContributors();
-    renderSharedUsers();
-    renderBudgetEstimate();
-    syncOutingTitleStyle();
-  });
+  loadPlacesFromApi().catch(console.error).finally(renderCreationPage);
 }
 
 initializeCreationPage();
