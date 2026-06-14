@@ -12,6 +12,7 @@ const heroSearchForm = document.querySelector("#heroSearchForm");
 const heroSearchInput = document.querySelector("#heroSearchInput");
 const heroBgImageA = document.querySelector("#heroBgImageA");
 const heroBgImageB = document.querySelector("#heroBgImageB");
+const skeletons = window.ChicagoInsiderSkeletons;
 
 const chicagoHeroSlides = [
   "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Skyline%20on%20the%20Chicago%20River.jpg?width=1800",
@@ -65,6 +66,8 @@ function resolveAssetUrl(url) {
 let chicagoMap;
 let googleMapsPromise;
 let mapMarkers = [];
+let activeMapInfoWindow;
+let mapCloseClickListener;
 let filterSearchTimer;
 let hasLoadedInitialPlaces = false;
 let heroSlideIndex = 0;
@@ -169,10 +172,21 @@ function placeImageUrl(place) {
 }
 
 function renderLoading(message = "Finding Chicago spots...") {
+  if (skeletons) {
+    skeletons.showHomePlaceCards(placeGrid, 4);
+    return;
+  }
+
+  placeGrid.setAttribute("aria-busy", "true");
   placeGrid.innerHTML = `<p class="empty-state">${message}</p>`;
 }
 
 function renderError() {
+  skeletons?.markLoaded(placeGrid);
+  if (!chicagoMap && mapPreview.getAttribute("aria-busy") === "true") {
+    skeletons?.markLoaded(mapPreview);
+    mapPreview.textContent = "Map unavailable until recommendations load.";
+  }
   placeGrid.innerHTML = `
     <div class="empty-state error-state">
       Could not load recommendations. Make sure the backend server is running.
@@ -244,6 +258,8 @@ async function ensureMap() {
   const maps = await loadGoogleMaps();
 
   if (!chicagoMap) {
+    skeletons?.markLoaded(mapPreview);
+    mapPreview.innerHTML = "";
     chicagoMap = new maps.Map(mapPreview, {
       center: { lat: 41.8781, lng: -87.6298 },
       zoom: 12,
@@ -267,28 +283,36 @@ async function updateMapMarkers(places = []) {
       }))
       .filter((place) => place.coordinates);
 
+    if (activeMapInfoWindow) activeMapInfoWindow.close();
+    activeMapInfoWindow = null;
+
     mapMarkers.forEach((marker) => marker.setMap(null));
-    mapMarkers = placesWithCoordinates.map((place, index) => {
+    mapMarkers = placesWithCoordinates.map((place) => {
       const marker = new maps.Marker({
         position: place.coordinates,
         map,
-        title: place.name,
-        label: {
-          text: String(index + 1),
-          color: "#ffffff",
-          fontSize: "12px",
-          fontWeight: "700"
-        }
+        title: place.name
       });
 
       const infoWindow = new maps.InfoWindow({
-        content: `<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.neighborhood || "Chicago")}`
+        content: mapInfoContent(place)
       });
 
-      marker.addListener("click", () => infoWindow.open({ anchor: marker, map }));
+      marker.addListener("click", () => {
+        if (activeMapInfoWindow) activeMapInfoWindow.close();
+        infoWindow.open({ anchor: marker, map });
+        activeMapInfoWindow = infoWindow;
+      });
       bounds.extend(place.coordinates);
       return marker;
     });
+
+    if (!mapCloseClickListener) {
+      mapCloseClickListener = map.addListener("click", () => {
+        if (activeMapInfoWindow) activeMapInfoWindow.close();
+        activeMapInfoWindow = null;
+      });
+    }
 
     if (placesWithCoordinates.length > 1) {
       map.fitBounds(bounds, 48);
@@ -301,8 +325,33 @@ async function updateMapMarkers(places = []) {
     }
   } catch (error) {
     console.error(error);
+    skeletons?.markLoaded(mapPreview);
     mapPreview.textContent = "Google Maps could not load. Check the API key settings and restart the server.";
   }
+}
+
+function mapInfoContent(place) {
+  const imageUrl = placeImageUrl(place);
+
+  return `
+    <div class="map-info-card">
+      <img
+        class="map-info-image"
+        src="${escapeHtml(imageUrl)}"
+        alt="${escapeHtml(place.name)}"
+        onerror="window.usePlaceImageFallback(this)"
+        data-place-name="${escapeHtml(place.name)}"
+      />
+      <div class="map-info-body">
+        <strong>${escapeHtml(place.name)}</strong>
+        <div class="map-info-tags">
+          <span>${escapeHtml(place.category || "Chicago spot")}</span>
+          ${place.price ? `<span>${escapeHtml(place.price)}</span>` : ""}
+        </div>
+        <p>${escapeHtml(place.neighborhood || "Chicago")}</p>
+      </div>
+    </div>
+  `;
 }
 
 function placeCard(place) {
@@ -342,11 +391,13 @@ function renderRecommendations(recommendations, parsedFilters = {}) {
         No exact matches yet. Try broadening the neighborhood, vibe, or budget.
       </div>
     `;
+    skeletons?.markLoaded(placeGrid);
     resultsSummary.textContent = "No matches found for that combination.";
     return;
   }
 
   placeGrid.innerHTML = recommendations.map(placeCard).join("");
+  skeletons?.markLoaded(placeGrid);
 
   const activeFilters = Object.entries(parsedFilters)
     .filter(([, value]) => value)
@@ -427,9 +478,12 @@ async function loadInitialPlaces() {
 
 function initializeApp() {
   startHeroSlideshow();
+  if (!chicagoMap && !mapPreview.innerHTML.trim()) {
+    skeletons?.showMap(mapPreview);
+  }
   loadInitialPlaces();
   window.setTimeout(() => {
-    if (placeGrid.textContent.includes("Loading curated Chicago spots")) {
+    if (placeGrid.getAttribute("aria-busy") === "true") {
       runRecommendationSearch(readFormFilters());
     }
   }, 800);

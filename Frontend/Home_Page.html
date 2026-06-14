@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChicagoInsider</title>
-  <link rel="stylesheet" href="Styles.css?v=32" />
+  <link rel="stylesheet" href="Styles.css?v=34" />
+  <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
 </head>
 <body>
   <header class="hero">
@@ -106,17 +107,13 @@
         <p id="resultsSummary">Personalized places based on your filters.</p>
       </div>
 
-      <div class="place-grid" id="placeGrid">
-        <p class="empty-state">Loading curated Chicago spots...</p>
-      </div>
+      <div class="place-grid" id="placeGrid"></div>
     </section>
 
     <aside class="side-panel">
       <div class="card map-card">
         <h3>Map Preview</h3>
-        <div class="map-placeholder" id="mapPreview">
-          Loading map...
-        </div>
+        <div class="map-placeholder" id="mapPreview"></div>
       </div>
 
       <div class="card assistant-card">
@@ -129,6 +126,7 @@
     </aside>
   </main>
 
-  <script src="Script.js?v=24"></script>
+  <script src="Skeleton_Loaders.js?v=1"></script>
+  <script src="Script.js?v=27"></script>
 </body>
 </html>

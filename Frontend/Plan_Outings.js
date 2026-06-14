@@ -11,6 +11,7 @@ const collectionFilterBtn = document.querySelector("#collectionFilterBtn");
 const outingFilterBtn = document.querySelector("#outingFilterBtn");
 const collectionFilterMenu = document.querySelector("#collectionFilterMenu");
 const outingFilterMenu = document.querySelector("#outingFilterMenu");
+const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 
 const places = [
@@ -267,6 +268,7 @@ function renderCollections() {
   collectionGrid.innerHTML = filteredPlaces.length
     ? filteredPlaces.map(placeTile).join("")
     : `<p class="drop-hint">No collection matches.</p>`;
+  skeletons?.markLoaded(collectionGrid);
 }
 
 function renderOutings() {
@@ -279,6 +281,7 @@ function renderOutings() {
   outingGrid.innerHTML = filteredOutings.length
     ? filteredOutings.slice(0, 3).map(outingCard).join("")
     : `<p class="drop-hint">No outing matches.</p>`;
+  skeletons?.markLoaded(outingGrid);
 }
 
 function renderPlaybook() {
@@ -288,6 +291,7 @@ function renderPlaybook() {
   playbookList.innerHTML = playbookPlaces.length
     ? playbookPlaces.map(playbookCard).join("")
     : `<p class="drop-hint">Drag places here</p>`;
+  skeletons?.markLoaded(playbookList);
 }
 
 function addPlaceToPlaybook(placeId) {
@@ -440,6 +444,23 @@ document.addEventListener("click", closeMenus);
 
 setActiveMenuButton(collectionFilterMenu, activeCollectionFilter);
 setActiveMenuButton(outingFilterMenu, activeOutingFilter);
-renderCollections();
-renderOutings();
-renderPlaybook();
+
+function initializePlannerPage() {
+  if (!skeletons) {
+    renderCollections();
+    renderOutings();
+    renderPlaybook();
+    return;
+  }
+
+  skeletons.showSpotTiles(collectionGrid, 6);
+  skeletons.showOutingCards(outingGrid, 3);
+  skeletons.showPlaybookCards(playbookList, 2);
+  window.requestAnimationFrame(() => {
+    renderCollections();
+    renderOutings();
+    renderPlaybook();
+  });
+}
+
+initializePlannerPage();

@@ -21,6 +21,7 @@ const contributorsCard = document.querySelector("#contributorsCard");
 const addContributorPanelBtn = document.querySelector("#addContributorPanelBtn");
 const budgetCard = document.querySelector("#budgetCard");
 const canvasDropZone = document.querySelector("#canvasDropZone");
+const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
 const workspaceStorageKey = "chicagoInsider.workspacePlaces";
@@ -137,6 +138,7 @@ let outingMap;
 let googleMapsPromise;
 let mapMarkers = [];
 let activeInfoWindow;
+let mapCloseClickListener;
 let contributors = loadContributors();
 const mockUsers = ["ben", "trevor", "alex", "jordan"];
 let undoStack = [];
@@ -572,6 +574,7 @@ function renderContributors() {
       <button class="remove-contributor-button" type="button" data-remove-contributor="${escapeHtml(username)}" aria-label="Remove ${escapeHtml(username)}" ${username === "ben" ? "disabled" : ""}>x</button>
     </div>
   `).join("") + addButton;
+  skeletons?.markLoaded(contributorsCard);
 }
 
 function playbookCard(place) {
@@ -612,6 +615,7 @@ function renderPlaybook() {
     : `<button class="add-stop-card empty-add-card" type="button" aria-label="Add collection">
         <span>+</span>
       </button>`;
+  skeletons?.markLoaded(collectionsList);
 }
 
 function workspaceCard(place, index) {
@@ -636,6 +640,7 @@ function renderWorkspace() {
         <span>Drag cards from Collections Playbook into this workspace.</span>
       </div>
     `;
+    skeletons?.markLoaded(canvasDropZone);
     return;
   }
 
@@ -644,6 +649,7 @@ function renderWorkspace() {
       ${workspacePlaces.map(workspaceCard).join("")}
     </div>
   `;
+  skeletons?.markLoaded(canvasDropZone);
 }
 
 function addPlaceToWorkspace(placeId, shouldRecordHistory = true) {
@@ -693,6 +699,7 @@ function renderBudgetEstimate() {
         Add places to the workspace to estimate your outing cost.
       </div>
     `;
+    skeletons?.markLoaded(budgetCard);
     return;
   }
 
@@ -713,6 +720,7 @@ function renderBudgetEstimate() {
       }).join("")}
     </div>
   `;
+  skeletons?.markLoaded(budgetCard);
 }
 
 function selectPlaybookCard(placeId) {
@@ -782,6 +790,8 @@ async function ensureOutingMap() {
   const maps = await loadGoogleMaps();
 
   if (!outingMap) {
+    skeletons?.markLoaded(outingMapPreview);
+    outingMapPreview.innerHTML = "";
     outingMap = new maps.Map(outingMapPreview, {
       center: { lat: 41.8781, lng: -87.6298 },
       zoom: 12,
@@ -804,25 +814,15 @@ async function renderPlaybookMap() {
     mapMarkers = [];
     if (activeInfoWindow) activeInfoWindow.close();
 
-    mapMarkers = placesWithCoordinates.map((place, index) => {
+    mapMarkers = placesWithCoordinates.map((place) => {
       const marker = new maps.Marker({
         position: place.coordinates,
         map,
-        title: place.name,
-        label: {
-          text: String(index + 1),
-          color: "#ffffff",
-          fontSize: "11px",
-          fontWeight: "700"
-        }
+        title: place.name
       });
 
       const infoWindow = new maps.InfoWindow({
-        content: `
-          <strong>${escapeHtml(place.name)}</strong><br>
-          ${escapeHtml(place.category)} | ${escapeHtml(place.price)}<br>
-          ${escapeHtml(place.timeWindow || "")}
-        `
+        content: mapInfoContent(place)
       });
 
       marker.addListener("click", () => {
@@ -835,6 +835,14 @@ async function renderPlaybookMap() {
       bounds.extend(place.coordinates);
       return { placeId: place.id, marker, infoWindow };
     });
+
+    if (!mapCloseClickListener) {
+      mapCloseClickListener = map.addListener("click", () => {
+        if (activeInfoWindow) activeInfoWindow.close();
+        activeInfoWindow = null;
+        selectPlaybookCard("");
+      });
+    }
 
     if (placesWithCoordinates.length > 1) {
       map.fitBounds(bounds, 42);
@@ -854,8 +862,24 @@ async function renderPlaybookMap() {
   }
 }
 
-function renderMapFallback(selectedPlace = playbookPlaces[0]) {
-  const pins = playbookPlaces.filter((place) => place.coordinates).map((place, index) => {
+function mapInfoContent(place) {
+  return `
+    <div class="map-info-card">
+      <img class="map-info-image" src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <div class="map-info-body">
+        <strong>${escapeHtml(place.name)}</strong>
+        <div class="map-info-tags">
+          <span>${escapeHtml(place.category)}</span>
+          <span>${escapeHtml(place.price)}</span>
+        </div>
+        <p>${escapeHtml(place.timeWindow || "")}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderMapFallback(selectedPlace = null) {
+  const pins = playbookPlaces.filter((place) => place.coordinates).map((place) => {
     const position = mapPinPosition(place.coordinates);
     const selectedClass = selectedPlace?.id === place.id ? "is-selected" : "";
 
@@ -867,11 +891,24 @@ function renderMapFallback(selectedPlace = playbookPlaces[0]) {
         data-place-id="${escapeHtml(place.id)}"
         title="${escapeHtml(place.name)}"
         aria-label="${escapeHtml(place.name)} map marker"
-      >
-        <span>${index + 1}</span>
-      </button>
+      ></button>
     `;
   }).join("");
+
+  const selectedInfo = selectedPlace ? `
+    <article class="map-fallback-info">
+      <button class="map-fallback-close" type="button" aria-label="Close ${escapeHtml(selectedPlace.name)} details">x</button>
+      <img class="map-info-image" src="${escapeHtml(selectedPlace.image)}" alt="${escapeHtml(selectedPlace.name)}" />
+      <div class="map-info-body">
+        <strong>${escapeHtml(selectedPlace.name)}</strong>
+        <div class="map-info-tags">
+          <span>${escapeHtml(selectedPlace.category)}</span>
+          <span>${escapeHtml(selectedPlace.price)}</span>
+        </div>
+        <p>${escapeHtml(selectedPlace.timeWindow || "")}</p>
+      </div>
+    </article>
+  ` : "";
 
   outingMapPreview.innerHTML = `
     <iframe
@@ -882,7 +919,9 @@ function renderMapFallback(selectedPlace = playbookPlaces[0]) {
       src="https://www.google.com/maps?q=Chicago&output=embed"
     ></iframe>
     <div class="map-overlay-pins" aria-label="Map markers">${pins}</div>
+    ${selectedInfo}
   `;
+  skeletons?.markLoaded(outingMapPreview);
 }
 
 function mapPinPosition(coordinates) {
@@ -1102,6 +1141,12 @@ canvasDropZone.addEventListener("click", (event) => {
 });
 
 outingMapPreview.addEventListener("click", (event) => {
+  if (event.target.closest(".map-fallback-close")) {
+    renderMapFallback(null);
+    selectPlaybookCard("");
+    return;
+  }
+
   const pin = event.target.closest(".map-overlay-pin[data-place-id]");
   if (!pin) return;
 
@@ -1223,10 +1268,32 @@ window.addEventListener("pageshow", () => {
   renderBudgetEstimate();
 });
 
-renderPlaybook();
-renderWorkspace();
-renderPlaybookMap();
-renderContributors();
-renderSharedUsers();
-renderBudgetEstimate();
-syncOutingTitleStyle();
+function initializeCreationPage() {
+  if (!skeletons) {
+    renderPlaybook();
+    renderWorkspace();
+    renderPlaybookMap();
+    renderContributors();
+    renderSharedUsers();
+    renderBudgetEstimate();
+    syncOutingTitleStyle();
+    return;
+  }
+
+  skeletons.showCreationPlaybook(collectionsList, 3);
+  skeletons.showWorkspace(canvasDropZone);
+  skeletons.showMap(outingMapPreview);
+  skeletons.showContributors(contributorsCard, 3);
+  skeletons.showBudget(budgetCard);
+  window.requestAnimationFrame(() => {
+    renderPlaybook();
+    renderWorkspace();
+    renderPlaybookMap();
+    renderContributors();
+    renderSharedUsers();
+    renderBudgetEstimate();
+    syncOutingTitleStyle();
+  });
+}
+
+initializeCreationPage();

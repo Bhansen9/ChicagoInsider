@@ -745,6 +745,119 @@ input {
   transform: rotate(45deg);
 }
 
+.google-map-preview .gm-style-iw-c {
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+}
+
+.google-map-preview .gm-style-iw-ch {
+  display: none;
+}
+
+.google-map-preview .gm-style-iw-chr {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}
+
+.google-map-preview .gm-style-iw-d {
+  overflow: hidden !important;
+}
+
+.google-map-preview .gm-ui-hover-effect {
+  top: 4px !important;
+  right: 4px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.map-info-card {
+  width: 168px;
+  overflow: hidden;
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+}
+
+.map-info-image {
+  width: 100%;
+  height: 88px;
+  display: block;
+  object-fit: cover;
+  background: #dbeafe;
+}
+
+.map-info-body {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px 11px;
+}
+
+.map-info-body strong {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.map-info-body p {
+  color: #536071;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.map-info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.map-info-tags span {
+  min-height: 19px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #2563eb;
+  padding: 0 7px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.map-fallback-info {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 3;
+  width: min(174px, calc(100% - 20px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+}
+
+.map-fallback-close {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #111827;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .contributors-card {
   min-height: 215px;
   padding: 14px 10px;

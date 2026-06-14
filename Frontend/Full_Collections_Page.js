@@ -4,6 +4,7 @@ const collectionFilterBtn = document.querySelector("#collectionFilterBtn");
 const collectionFilterMenu = document.querySelector("#collectionFilterMenu");
 const collectionSortBtn = document.querySelector("#collectionSortBtn");
 const collectionSortMenu = document.querySelector("#collectionSortMenu");
+const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 
 const places = [
@@ -221,6 +222,7 @@ function renderCollections() {
   collectionGrid.innerHTML = nextPlaces.length
     ? nextPlaces.map(cardForPlace).join("")
     : `<div class="empty-state">No collections match that search.</div>`;
+  skeletons?.markLoaded(collectionGrid);
 }
 
 function setActiveMenuButton(menu, key, value) {
@@ -288,4 +290,15 @@ document.addEventListener("click", closeMenus);
 
 setActiveMenuButton(collectionFilterMenu, "filter", activeCollectionFilter);
 setActiveMenuButton(collectionSortMenu, "sort", activeSort);
-renderCollections();
+
+function initializeCollectionsPage() {
+  if (!skeletons) {
+    renderCollections();
+    return;
+  }
+
+  skeletons.showCollectionCards(collectionGrid, 8);
+  window.requestAnimationFrame(renderCollections);
+}
+
+initializeCollectionsPage();

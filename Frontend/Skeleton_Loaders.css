@@ -1,0 +1,199 @@
+:root {
+  --skeleton-base: #dbe3ee;
+  --skeleton-highlight: #f7faff;
+  --skeleton-soft: #eef3f8;
+}
+
+[aria-busy="true"] {
+  cursor: wait;
+}
+
+.skeleton-card,
+.skeleton-map-shell,
+.skeleton-profile-stat {
+  pointer-events: none;
+  user-select: none;
+}
+
+.skeleton-line,
+.skeleton-block,
+.skeleton-pill,
+.skeleton-button,
+.skeleton-circle,
+.skeleton-chip,
+.skeleton-stat-number {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--skeleton-base);
+}
+
+.skeleton-line::after,
+.skeleton-block::after,
+.skeleton-pill::after,
+.skeleton-button::after,
+.skeleton-circle::after,
+.skeleton-chip::after,
+.skeleton-stat-number::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.78), transparent);
+  animation: skeletonShimmer 1.25s ease-in-out infinite;
+}
+
+.skeleton-line {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  margin: 4px 0;
+}
+
+.skeleton-line.is-title {
+  height: 16px;
+}
+
+.skeleton-line.is-compact {
+  height: 8px;
+}
+
+.skeleton-block {
+  width: 100%;
+  border-radius: 7px;
+}
+
+.skeleton-image {
+  aspect-ratio: 16 / 10;
+  margin: 8px 0;
+}
+
+.skeleton-map-shell {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  padding: 16px;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(207, 215, 228, 0.58) 1px, transparent 1px),
+    linear-gradient(rgba(207, 215, 228, 0.58) 1px, transparent 1px),
+    var(--skeleton-soft);
+  background-size: 38px 38px;
+}
+
+.skeleton-map-shell .skeleton-line {
+  max-width: 68%;
+}
+
+.skeleton-map-route {
+  width: 72%;
+  height: 38px;
+  border: 4px solid var(--skeleton-base);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 999px;
+  transform: rotate(-10deg);
+}
+
+.skeleton-pill,
+.skeleton-chip {
+  width: 74px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.skeleton-button {
+  width: 82px;
+  height: 28px;
+  border-radius: 6px;
+  margin-top: auto;
+}
+
+.skeleton-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+}
+
+.skeleton-stat-number {
+  width: 46px;
+  height: 30px;
+  border-radius: 8px;
+  margin: 0 auto;
+}
+
+.skeleton-cluster {
+  display: grid;
+  gap: 8px;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.place-card.skeleton-card,
+.trend-card.skeleton-card {
+  gap: 0;
+}
+
+.place-card.skeleton-card .skeleton-image {
+  aspect-ratio: 16 / 10;
+}
+
+.collection-card.skeleton-card .skeleton-image,
+.spot-tile.skeleton-card .skeleton-image,
+.playbook-card.skeleton-card .skeleton-image {
+  aspect-ratio: 4 / 3;
+}
+
+.collection-card.skeleton-card .skeleton-line,
+.spot-tile.skeleton-card .skeleton-line,
+.playbook-card.skeleton-card .skeleton-line,
+.outing-card.skeleton-card .skeleton-line {
+  margin-top: 5px;
+}
+
+.saved-item.skeleton-card,
+.activity-item.skeleton-card,
+.contributor-row.skeleton-card,
+.workspace-place-card.skeleton-card {
+  background: #ffffff;
+}
+
+.outing-card.skeleton-card .outing-images {
+  min-height: 86px;
+}
+
+.outing-card.skeleton-card .outing-images .skeleton-block {
+  aspect-ratio: 16 / 10;
+  border-radius: 0;
+}
+
+.budget-card .skeleton-cluster,
+.contributors-card .skeleton-cluster {
+  height: 100%;
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line::after,
+  .skeleton-block::after,
+  .skeleton-pill::after,
+  .skeleton-button::after,
+  .skeleton-circle::after,
+  .skeleton-chip::after,
+  .skeleton-stat-number::after {
+    animation: none;
+  }
+}

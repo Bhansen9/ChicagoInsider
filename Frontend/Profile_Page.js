@@ -6,6 +6,7 @@ const activityList = document.querySelector("#activityList");
 const neighborhoodPreference = document.querySelector("#neighborhoodPreference");
 const vibePreference = document.querySelector("#vibePreference");
 const budgetPreference = document.querySelector("#budgetPreference");
+const skeletons = window.ChicagoInsiderSkeletons;
 
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
@@ -140,6 +141,7 @@ function renderSavedPlaces(savedIds) {
       </article>
     `).join("")
     : `<div class="empty-state">No saved places yet.</div>`;
+  skeletons?.markLoaded(savedPlacesList);
 }
 
 function renderActivity(savedOutings) {
@@ -151,6 +153,7 @@ function renderActivity(savedOutings) {
       </article>
     `).join("")
     : `<div class="empty-state">No saved outing activity yet.</div>`;
+  skeletons?.markLoaded(activityList);
 }
 
 function loadPreferences() {
@@ -178,6 +181,7 @@ function renderProfile() {
   const savedOutings = readJson(savedOutingsStorageKey, []);
   const workspaceIds = readJson(workspaceStorageKey, []);
 
+  [savedCount, outingCount, workspaceCount].forEach((counter) => skeletons?.clearStat(counter));
   savedCount.textContent = Array.isArray(savedIds) ? savedIds.length : 0;
   outingCount.textContent = Array.isArray(savedOutings) ? savedOutings.length : 0;
   workspaceCount.textContent = Array.isArray(workspaceIds) ? workspaceIds.length : 0;
@@ -191,4 +195,16 @@ function renderProfile() {
   select.addEventListener("change", savePreferences);
 });
 
-renderProfile();
+function initializeProfilePage() {
+  if (!skeletons) {
+    renderProfile();
+    return;
+  }
+
+  [savedCount, outingCount, workspaceCount].forEach((counter) => skeletons.showStat(counter));
+  skeletons.showSavedItems(savedPlacesList, 3);
+  skeletons.showActivityItems(activityList, 3);
+  window.requestAnimationFrame(renderProfile);
+}
+
+initializeProfilePage();

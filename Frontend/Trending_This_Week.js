@@ -1,6 +1,7 @@
 const trendGrid = document.querySelector("#trendGrid");
 const savedTrendCount = document.querySelector("#savedTrendCount");
 const trendTabs = document.querySelectorAll(".trend-tab");
+const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 
 const trendingPlaces = [
@@ -145,6 +146,8 @@ function renderTrends() {
   ));
 
   trendGrid.innerHTML = filteredPlaces.map(renderTrendCard).join("");
+  skeletons?.markLoaded(trendGrid);
+  skeletons?.clearStat(savedTrendCount);
   savedTrendCount.textContent = trendingPlaces.filter((place) => savedPlaceIds.includes(place.id)).length;
 }
 
@@ -171,4 +174,15 @@ trendGrid.addEventListener("click", (event) => {
   renderTrends();
 });
 
-renderTrends();
+function initializeTrendingPage() {
+  if (!skeletons) {
+    renderTrends();
+    return;
+  }
+
+  skeletons.showTrendCards(trendGrid, 6);
+  skeletons.showStat(savedTrendCount);
+  window.requestAnimationFrame(renderTrends);
+}
+
+initializeTrendingPage();
