@@ -1,4 +1,5 @@
 const places = require("../data/chicagoPlacesSeed.json");
+const { env } = require("../config/environment");
 
 const knownValues = {
   neighborhoods: [...new Set(places.map((place) => place.neighborhood))],
@@ -36,16 +37,17 @@ function parseWithHeuristics(prompt) {
 }
 
 async function parseWithOpenAI(prompt) {
-  if (!process.env.OPENAI_API_KEY || !prompt) return null;
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey || !prompt) return null;
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: env("OPENAI_MODEL", "gpt-4.1-mini"),
       input: [
         {
           role: "system",

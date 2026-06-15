@@ -1,4 +1,5 @@
 const seedPlaces = require("../data/chicagoPlacesSeed.json");
+const { env, getGooglePlacesApiKey } = require("../config/environment");
 
 const PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 const PLACE_FIELD_MASK = [
@@ -28,6 +29,7 @@ const CHICAGO_BOUNDS = {
 
 const CACHE_TTL_MS = 1000 * 60 * 10;
 const searchCache = new Map();
+const warnedMessages = new Set();
 
 const CATEGORY_TO_TYPE = {
   Food: "restaurant",
@@ -69,20 +71,21 @@ const CHICAGO_NEIGHBORHOOD_AREAS = [
 ];
 
 function googlePlacesApiKey() {
-  return (
-    process.env.GOOGLE_PLACES_API_KEY ||
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_MAPS_BROWSER_API_KEY ||
-    ""
-  );
+  return getGooglePlacesApiKey();
 }
 
 function googlePlacesReferer() {
   return (
-    process.env.GOOGLE_MAPS_HTTP_REFERRER ||
-    process.env.APP_PUBLIC_URL ||
+    env("GOOGLE_MAPS_HTTP_REFERRER") ||
+    env("APP_PUBLIC_URL") ||
     "http://localhost:3000/"
   );
+}
+
+function warnOnce(message) {
+  if (warnedMessages.has(message)) return;
+  warnedMessages.add(message);
+  console.warn(message);
 }
 
 function normalize(value) {
@@ -409,6 +412,11 @@ function fallbackPlaces(filters = {}, limit = 12) {
 async function searchChicagoPlaces(filters = {}, options = {}) {
   const limit = options.limit || 12;
 
+  if (!googlePlacesApiKey()) {
+    warnOnce("Google Places API key is not configured. Using local Chicago seed data.");
+    return fallbackPlaces(filters, limit);
+  }
+
   try {
     const places = Object.keys(filters).length
       ? await textSearch(filters, Math.min(20, Math.max(limit, 8)))
@@ -416,7 +424,7 @@ async function searchChicagoPlaces(filters = {}, options = {}) {
 
     return places.slice(0, limit);
   } catch (error) {
-    console.warn(error.message);
+    warnOnce(`${error.message} Using local Chicago seed data.`);
     return fallbackPlaces(filters, limit);
   }
 }
