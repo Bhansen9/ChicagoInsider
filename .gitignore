@@ -6,13 +6,27 @@
 !*.env.example
 !.env.example
 !.env.*.example
+!**/*.env.example
+!**/.env.example
+!**/.env.*.example
 
-# Maven / Java build output
+# Dependencies
+node_modules/
+
+# Node build and cache output
+dist/
+build/
+coverage/
+.cache/
+.vite/
+.turbo/
+.next/
+
+# Java / Maven build output
 target/
 *.class
 
-# Node dependencies and runtime output
-node_modules/
+# Logs and runtime output
 *.log
 *.err
 npm-debug.log*
@@ -20,8 +34,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Test and coverage output
-coverage/
+# Test reports
 surefire-reports/
 failsafe-reports/
 
