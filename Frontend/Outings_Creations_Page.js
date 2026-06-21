@@ -26,12 +26,9 @@ const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
 const workspaceStorageKey = "chicagoInsider.workspacePlaces";
 const contributorsStorageKey = "chicagoInsider.contributors";
+const auth = window.ChicagoInsiderAuth;
 
-const isBackendOrigin =
-  ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -151,6 +148,27 @@ function normalizeApiPlace(place) {
   };
 }
 
+function normalizeStoredPlace(place = {}) {
+  const metadata = place.metadata || {};
+  const googleId = place.google_place_id || place.googlePlaceId || place.id;
+  return {
+    id: googleId?.startsWith?.("local:") ? googleId.slice(6) : googleId,
+    supabasePlaceId: place.id,
+    name: place.name || "Chicago place",
+    category: place.category || "Activity",
+    price: metadata.price || "$$",
+    neighborhood: metadata.neighborhood || "Chicago",
+    image: resolveAssetUrl(metadata.image || "assets/pixel-chicago-hero.png"),
+    website: place.website_url || "Saved place",
+    timeWindow: "Hours vary",
+    note: metadata.note || "Saved to your PlayBook",
+    coordinates: {
+      lat: Number(place.latitude) || 41.8781,
+      lng: Number(place.longitude) || -87.6298
+    }
+  };
+}
+
 async function loadPlacesFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/places`);
   if (!response.ok) throw new Error("Could not load Google Places");
@@ -163,6 +181,17 @@ async function loadPlacesFromApi() {
   workspacePlaces = loadWorkspacePlaces();
 }
 
+async function loadPlaybookPlacesFromApi() {
+  const storedPlaces = await auth.getDefaultPlaybookPlaces();
+  if (!storedPlaces.length) {
+    playbookPlaces = [];
+    savePlaybookPlaces();
+    return;
+  }
+  playbookPlaces = storedPlaces.map(normalizeStoredPlace);
+  savePlaybookPlaces();
+}
+
 let playbookPlaces = loadPlaybookPlaces();
 let workspacePlaces = loadWorkspacePlaces();
 let outingMap;
@@ -172,6 +201,8 @@ let activeInfoWindow;
 let mapCloseClickListener;
 let contributors = loadContributors();
 const mockUsers = ["ben", "trevor", "alex", "jordan"];
+let savedServerOutingId = null;
+let outingSavePromise = null;
 let undoStack = [];
 let redoStack = [];
 let titleEditSnapshot = null;
@@ -322,19 +353,19 @@ function loadWorkspacePlaces() {
 }
 
 function normalizeContributors(value) {
+  const currentUsername = auth.getProfile()?.username || "you";
   const fallback = [
-    { username: "ben", role: "owner" },
-    { username: "trevor", role: "viewer" }
+    { username: currentUsername, role: "owner" }
   ];
 
   if (!Array.isArray(value)) return fallback;
 
-  const roleSet = new Set(["owner", "editor", "viewer"]);
+  const roleSet = new Set(["owner", "write", "suggest", "read"]);
   const contributorsByName = new Map();
   value.forEach((item) => {
     const username = String(item?.username || item || "").trim().toLowerCase();
     if (!username) return;
-    const role = roleSet.has(item?.role) ? item.role : "viewer";
+    const role = roleSet.has(item?.role) ? item.role : "read";
     contributorsByName.set(username, { username, role });
   });
 
@@ -395,6 +426,46 @@ function currentOutingSnapshot() {
   };
 }
 
+function contributorPayload() {
+  return contributors
+    .filter((contributor) => contributor.role !== "owner")
+    .map((contributor) => ({
+      username: contributor.username,
+      permission: contributor.role
+    }));
+}
+
+function currentOutingApiPayload() {
+  return {
+    title: outingTitleInput.value.trim() || "Untitled Outing",
+    starts_at: outingDateInput.value || null,
+    description: `TimeFrame: ${timeframeSelect.value}`,
+    status: "planned",
+    places: (workspacePlaces.length ? workspacePlaces : playbookPlaces),
+    contributors: contributorPayload()
+  };
+}
+
+async function saveCurrentOutingToApi() {
+  if (savedServerOutingId) return savedServerOutingId;
+  if (outingSavePromise) return outingSavePromise;
+
+  outingSavePromise = auth.createOuting(currentOutingApiPayload())
+    .then((outing) => {
+      savedServerOutingId = outing.id;
+      return outing.id;
+    })
+    .catch((error) => {
+      console.error(error);
+      return null;
+    })
+    .finally(() => {
+      outingSavePromise = null;
+    });
+
+  return outingSavePromise;
+}
+
 function saveCurrentOuting() {
   try {
     const savedOutings = JSON.parse(localStorage.getItem(savedOutingsStorageKey) || "[]");
@@ -403,6 +474,7 @@ function saveCurrentOuting() {
   } catch (error) {
     // Saving is best-effort while the app is front-end only.
   }
+  saveCurrentOutingToApi();
 }
 
 function startNewOuting() {
@@ -414,6 +486,7 @@ function startNewOuting() {
   playbookPlaces = [];
   workspacePlaces = [];
   contributors = normalizeContributors();
+  savedServerOutingId = null;
   savePlaybookPlaces();
   saveWorkspacePlaces();
   saveContributors();
@@ -474,7 +547,7 @@ function openShareDialog() {
   shareDialog.classList.add("open");
   shareDialog.setAttribute("aria-hidden", "false");
   shareUsernameInput.value = "";
-  shareRoleSelect.value = "editor";
+  shareRoleSelect.value = "write";
   renderShareResults();
   renderSharedUsers();
   window.setTimeout(() => shareUsernameInput.focus(), 0);
@@ -488,7 +561,9 @@ function closeShareDialog() {
 function addSharedUser(username) {
   const cleanedUsername = String(username || "").trim().toLowerCase();
   if (!cleanedUsername) return;
-  const shareRole = shareRoleSelect.value === "editor" ? "editor" : "viewer";
+  const shareRole = ["read", "suggest", "write"].includes(shareRoleSelect.value)
+    ? shareRoleSelect.value
+    : "read";
 
   pushUndoState();
   const existingContributor = contributors.find((item) => item.username === cleanedUsername);
@@ -508,7 +583,7 @@ function addSharedUser(username) {
 
 function removeSharedUser(username) {
   const cleanedUsername = String(username || "").trim().toLowerCase();
-  if (cleanedUsername === "ben") return;
+  if (contributors.find((item) => item.username === cleanedUsername)?.role === "owner") return;
 
   pushUndoState();
   contributors = contributors.filter((item) => item.username !== cleanedUsername);
@@ -563,7 +638,7 @@ function renderSharedUsers() {
     ? contributors.map(({ username, role }) => `
       <div class="shared-user">
         <span>${escapeHtml(username)} - ${escapeHtml(roleLabel(role))}</span>
-        <button type="button" data-remove-share-user="${escapeHtml(username)}" ${username === "ben" ? "disabled" : ""}>Remove</button>
+        <button type="button" data-remove-share-user="${escapeHtml(username)}" ${role === "owner" ? "disabled" : ""}>Remove</button>
       </div>
     `).join("")
     : `<div class="shared-user"><span>No users shared yet</span></div>`;
@@ -572,14 +647,19 @@ function renderSharedUsers() {
 function roleLabel(role) {
   return {
     owner: "Owner",
-    editor: "Can edit",
-    viewer: "Can view"
-  }[role] || "Can view";
+    write: "Can write",
+    suggest: "Can suggest",
+    read: "Can read"
+  }[role] || "Can read";
 }
 
 function roleIcon(role) {
-  if (role === "owner" || role === "editor") {
+  if (role === "owner" || role === "write") {
     return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`;
+  }
+
+  if (role === "suggest") {
+    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`;
   }
 
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
@@ -599,10 +679,11 @@ function renderContributors() {
       <span class="contributor-role-icon">${roleIcon(role)}</span>
       <select data-contributor-role="${escapeHtml(username)}" aria-label="${escapeHtml(username)} privilege" ${role === "owner" ? "disabled" : ""}>
         <option value="owner" ${role === "owner" ? "selected" : ""}>Owner</option>
-        <option value="editor" ${role === "editor" ? "selected" : ""}>Can edit</option>
-        <option value="viewer" ${role === "viewer" ? "selected" : ""}>Can view</option>
+        <option value="write" ${role === "write" ? "selected" : ""}>Can write</option>
+        <option value="suggest" ${role === "suggest" ? "selected" : ""}>Can suggest</option>
+        <option value="read" ${role === "read" ? "selected" : ""}>Can read</option>
       </select>
-      <button class="remove-contributor-button" type="button" data-remove-contributor="${escapeHtml(username)}" aria-label="Remove ${escapeHtml(username)}" ${username === "ben" ? "disabled" : ""}>x</button>
+      <button class="remove-contributor-button" type="button" data-remove-contributor="${escapeHtml(username)}" aria-label="Remove ${escapeHtml(username)}" ${role === "owner" ? "disabled" : ""}>x</button>
     </div>
   `).join("") + addButton;
   skeletons?.markLoaded(contributorsCard);
@@ -647,6 +728,7 @@ function renderPlaybook() {
         <span>+</span>
       </button>`;
   skeletons?.markLoaded(collectionsList);
+  window.cacheDisplayedPlaces?.(playbookPlaces);
 }
 
 function workspaceCard(place, index) {
@@ -681,6 +763,7 @@ function renderWorkspace() {
     </div>
   `;
   skeletons?.markLoaded(canvasDropZone);
+  window.cacheDisplayedPlaces?.(workspacePlaces);
 }
 
 function addPlaceToWorkspace(placeId, shouldRecordHistory = true) {
@@ -1309,9 +1392,13 @@ async function renderCreationPage() {
   syncOutingTitleStyle();
 }
 
-function initializeCreationPage() {
+async function initializeCreationPage() {
+  if (!await auth.requireAuth()) return;
+
   if (!skeletons) {
-    loadPlacesFromApi().catch(console.error).finally(renderCreationPage);
+    await loadPlacesFromApi().catch(console.error);
+    await loadPlaybookPlacesFromApi().catch(console.error);
+    renderCreationPage();
     return;
   }
 
@@ -1320,7 +1407,9 @@ function initializeCreationPage() {
   skeletons.showMap(outingMapPreview);
   skeletons.showContributors(contributorsCard, 3);
   skeletons.showBudget(budgetCard);
-  loadPlacesFromApi().catch(console.error).finally(renderCreationPage);
+  await loadPlacesFromApi().catch(console.error);
+  await loadPlaybookPlacesFromApi().catch(console.error);
+  renderCreationPage();
 }
 
 initializeCreationPage();

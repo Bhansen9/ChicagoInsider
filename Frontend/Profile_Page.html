@@ -6,6 +6,7 @@
   <title>Profile | ChicagoInsider</title>
   <link rel="stylesheet" href="Profile_Page.css?v=1" />
   <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
+  <link rel="stylesheet" href="Auth.css?v=1" />
 </head>
 <body>
   <div class="profile-shell">
@@ -21,16 +22,19 @@
 
       <h1>Profile</h1>
 
-      <a class="profile-pill" href="Outings_Creations_Page.html">New Outing</a>
+      <div class="auth-user-chip">
+        <a class="profile-pill" href="Outings_Creations_Page.html">New Outing</a>
+        <button class="auth-logout-button" data-logout-button type="button">Logout</button>
+      </div>
     </header>
 
     <main class="profile-main">
       <section class="identity-panel" aria-label="Account summary">
-        <div class="avatar">B</div>
+        <div class="avatar" data-auth-avatar>B</div>
         <div>
           <p class="eyebrow">ChicagoInsider member</p>
-          <h2>Ben</h2>
-          <p class="profile-copy">Curating Chicago plans around rooftops, walkable neighborhoods, museums, and low-friction group outings.</p>
+          <h2 data-auth-username>Profile</h2>
+          <p class="profile-copy" id="profileBio">Curating Chicago plans around rooftops, walkable neighborhoods, museums, and low-friction group outings.</p>
         </div>
       </section>
 
@@ -107,6 +111,8 @@
   </div>
 
   <script src="Skeleton_Loaders.js?v=1"></script>
+  <script src="Place_Cache.js?v=1"></script>
+  <script src="Auth_Client.js?v=1"></script>
   <script src="Profile_Page.js?v=4"></script>
 </body>
 </html>

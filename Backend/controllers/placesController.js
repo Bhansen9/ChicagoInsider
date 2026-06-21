@@ -1,5 +1,6 @@
 const seedPlaces = require("../data/chicagoPlacesSeed.json");
 const { googlePlacesApiKey, googlePlacesReferer, searchChicagoPlaces } = require("../services/googlePlacesService");
+const { PlaceCacheError, getOrCreatePlace } = require("../services/placeCacheService");
 
 async function getPlaces(req, res, next) {
   try {
@@ -81,8 +82,47 @@ async function getPlacePhoto(req, res, next) {
   res.redirect(photoUrl.toString());
 }
 
+async function getPlaceByGooglePlaceId(req, res, next) {
+  try {
+    const result = await getOrCreatePlace(req.params.googlePlaceId);
+    res.setHeader("X-Place-Cache", result.source);
+    res.json(result.place);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function cachePlace(req, res, next) {
+  try {
+    const googlePlaceId = req.body?.googlePlaceId || req.body?.google_place_id;
+    const result = await getOrCreatePlace(googlePlaceId);
+    res.setHeader("X-Place-Cache", result.source);
+    res.status(result.source === "google" ? 201 : 200).json(result.place);
+  } catch (error) {
+    next(error);
+  }
+}
+
+function handlePlaceCacheError(error, req, res, next) {
+  if (!(error instanceof PlaceCacheError)) {
+    return next(error);
+  }
+
+  if (error.statusCode >= 500 || error.cause) {
+    console.error(error.cause || error);
+  }
+
+  res.status(error.statusCode).json({
+    error: error.message,
+    code: error.code
+  });
+}
+
 module.exports = {
+  cachePlace,
   getPlaces,
   getFilterOptions,
-  getPlacePhoto
+  getPlaceByGooglePlaceId,
+  getPlacePhoto,
+  handlePlaceCacheError
 };

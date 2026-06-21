@@ -5,11 +5,9 @@ const collectionFilterMenu = document.querySelector("#collectionFilterMenu");
 const collectionSortBtn = document.querySelector("#collectionSortBtn");
 const collectionSortMenu = document.querySelector("#collectionSortMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
+const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
-const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -142,6 +140,7 @@ let places = [
 let activeCollectionFilter = "all";
 let activeSort = "featured";
 let savedPlaceIds = loadSavedPlaceIds();
+let savedSpotByKey = new Map();
 
 function loadSavedPlaceIds() {
   try {
@@ -158,6 +157,52 @@ function saveSavedPlaceIds() {
   } catch (error) {
     // localStorage can be unavailable in restricted browser modes.
   }
+}
+
+function keysForStoredPlace(place = {}) {
+  return [
+    place.id,
+    place.google_place_id,
+    place.googlePlaceId,
+    place.google_place_id?.startsWith("local:") ? place.google_place_id.slice(6) : "",
+    place.name
+  ].filter(Boolean).map(String);
+}
+
+function keysForDisplayPlace(place = {}) {
+  return [
+    place.id,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    `local:${place.id}`,
+    place.name
+  ].filter(Boolean).map(String);
+}
+
+function rememberSavedSpot(savedSpot) {
+  keysForStoredPlace(savedSpot.place).forEach((key) => {
+    savedSpotByKey.set(key, savedSpot);
+    if (!savedPlaceIds.includes(key)) savedPlaceIds.push(key);
+  });
+}
+
+async function loadSavedSpotsFromApi() {
+  const savedSpots = await auth.getSavedSpots();
+  savedPlaceIds = [];
+  savedSpotByKey = new Map();
+  savedSpots.forEach(rememberSavedSpot);
+  saveSavedPlaceIds();
+}
+
+function savedSpotForPlace(place) {
+  return keysForDisplayPlace(place)
+    .map((key) => savedSpotByKey.get(key))
+    .find(Boolean);
+}
+
+function isPlaceSaved(place) {
+  return keysForDisplayPlace(place).some((key) => savedPlaceIds.includes(key));
 }
 
 function escapeHtml(value) {
@@ -197,7 +242,7 @@ function sortedPlaces(nextPlaces) {
 }
 
 function cardForPlace(place) {
-  const isSaved = savedPlaceIds.includes(place.id);
+  const isSaved = isPlaceSaved(place);
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
   const note = place.note || (place.vibes || []).join(", ") || "Google Places result";
 
@@ -253,6 +298,7 @@ function renderCollections() {
     ? nextPlaces.map(cardForPlace).join("")
     : `<div class="empty-state">No collections match that search.</div>`;
   skeletons?.markLoaded(collectionGrid);
+  window.cacheDisplayedPlaces?.(nextPlaces);
 }
 
 function setActiveMenuButton(menu, key, value) {
@@ -301,18 +347,31 @@ collectionSortMenu.addEventListener("click", (event) => {
   closeMenus();
 });
 
-collectionGrid.addEventListener("click", (event) => {
+collectionGrid.addEventListener("click", async (event) => {
   const saveButton = event.target.closest("button[data-place-id]");
   if (!saveButton) return;
 
   const placeId = saveButton.dataset.placeId;
-  if (savedPlaceIds.includes(placeId)) {
-    savedPlaceIds = savedPlaceIds.filter((id) => id !== placeId);
-  } else {
-    savedPlaceIds = [...savedPlaceIds, placeId];
+  const place = places.find((item) => String(item.id) === String(placeId));
+  if (!place) return;
+
+  saveButton.disabled = true;
+  try {
+    const savedSpot = savedSpotForPlace(place);
+    if (savedSpot) {
+      await auth.deleteSavedSpot(savedSpot.id);
+    } else {
+      await auth.saveSpot(place);
+    }
+
+    await loadSavedSpotsFromApi();
+  } catch (error) {
+    console.error(error);
+    if (error.status === 401) return;
+  } finally {
+    saveButton.disabled = false;
   }
 
-  saveSavedPlaceIds();
   renderCollections();
 });
 
@@ -321,14 +380,24 @@ document.addEventListener("click", closeMenus);
 setActiveMenuButton(collectionFilterMenu, "filter", activeCollectionFilter);
 setActiveMenuButton(collectionSortMenu, "sort", activeSort);
 
-function initializeCollectionsPage() {
+async function initializeCollectionsPage() {
+  if (!await auth.requireAuth()) return;
+
   if (!skeletons) {
-    loadPlacesFromApi().catch(console.error).finally(renderCollections);
+    await Promise.all([
+      loadPlacesFromApi().catch(console.error),
+      loadSavedSpotsFromApi().catch(console.error)
+    ]);
+    renderCollections();
     return;
   }
 
   skeletons.showCollectionCards(collectionGrid, 8);
-  loadPlacesFromApi().catch(console.error).finally(renderCollections);
+  await Promise.all([
+    loadPlacesFromApi().catch(console.error),
+    loadSavedSpotsFromApi().catch(console.error)
+  ]);
+  renderCollections();
 }
 
 initializeCollectionsPage();

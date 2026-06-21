@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account | ChicagoInsider</title>
+  <link rel="stylesheet" href="Auth.css?v=1" />
+</head>
+<body class="auth-page" data-auth-page="signup">
+  <main class="auth-scene">
+    <section class="auth-card" aria-label="Create account">
+      <a class="auth-brand" href="Home_Page.html">
+        <img src="assets/chicago-logo.svg" alt="" />
+        ChicagoInsider
+      </a>
+      <h1>Create an account</h1>
+      <p class="auth-subtitle">Welcome! Create an account to get started.</p>
+
+      <form class="auth-form" data-auth-form>
+        <div class="auth-row">
+          <input name="firstName" type="text" placeholder="First Name" autocomplete="given-name" />
+          <input name="lastName" type="text" placeholder="Last Name" autocomplete="family-name" />
+        </div>
+        <input name="email" type="email" placeholder="Email address" autocomplete="email" required />
+        <input name="username" type="text" placeholder="UserName" autocomplete="username" minlength="3" maxlength="32" required />
+        <div class="auth-input-wrap">
+          <input name="password" type="password" placeholder="Password" autocomplete="new-password" minlength="8" required />
+          <button class="auth-toggle-password" type="button" data-toggle-password aria-label="Show password"></button>
+        </div>
+        <label class="auth-terms">
+          <input id="termsAccepted" type="checkbox" />
+          I agree to the Terms and Conditions
+        </label>
+        <p class="auth-message" id="authMessage" role="status"></p>
+        <button class="auth-link-button" id="resendConfirmationBtn" type="button" hidden>Resend confirmation email</button>
+        <button class="auth-button" type="submit">Create free account</button>
+      </form>
+
+      <a class="auth-secondary" href="Login_Page.html">Sign In</a>
+    </section>
+  </main>
+
+  <script src="Auth_Client.js?v=1"></script>
+  <script src="Auth_Pages.js?v=1"></script>
+</body>
+</html>

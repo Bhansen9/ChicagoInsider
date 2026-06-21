@@ -6,6 +6,7 @@
   <title>Trending This Week | ChicagoInsider</title>
   <link rel="stylesheet" href="Trending_This_Week.css?v=1" />
   <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
+  <link rel="stylesheet" href="Auth.css?v=1" />
 </head>
 <body>
   <div class="trending-shell">
@@ -21,7 +22,10 @@
 
       <h1>Trending This Week</h1>
 
-      <a class="profile-pill" href="Profile_Page.html">Profile</a>
+      <div class="auth-user-chip">
+        <a class="profile-pill" href="Profile_Page.html" data-auth-username>Profile</a>
+        <button class="auth-logout-button" data-logout-button type="button">Logout</button>
+      </div>
     </header>
 
     <main class="trending-main">
@@ -52,6 +56,8 @@
   </div>
 
   <script src="Skeleton_Loaders.js?v=1"></script>
+  <script src="Place_Cache.js?v=1"></script>
+  <script src="Auth_Client.js?v=1"></script>
   <script src="Trending_This_Week.js?v=4"></script>
 </body>
 </html>

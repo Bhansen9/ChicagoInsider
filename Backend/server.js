@@ -13,6 +13,11 @@ const {
 const recommendationsRouter = require("./routes/recommendations");
 const placesRouter = require("./routes/placesRoutes");
 const configRouter = require("./routes/config");
+const authRouter = require("./routes/authRoutes");
+const userRouter = require("./routes/userRoutes");
+const savedSpotsRouter = require("./routes/savedSpotsRoutes");
+const playbooksRouter = require("./routes/playbooksRoutes");
+const outingsRouter = require("./routes/outingsRoutes");
 
 const app = express();
 const PORT = getPort();
@@ -50,6 +55,11 @@ app.use(express.static(frontendDir));
 app.use("/api/recommendations", recommendationsRouter);
 app.use("/api/places", placesRouter);
 app.use("/api/config", configRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/users", userRouter);
+app.use("/api/saved-spots", savedSpotsRouter);
+app.use("/api/playbooks", playbooksRouter);
+app.use("/api/outings", outingsRouter);
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendDir, "Home_Page.html"));
@@ -76,10 +86,17 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  const statusCode = Number(err.statusCode) || 500;
 
-  res.status(500).json({
-    error: "Something went wrong on the Chicago Insider backend."
+  if (statusCode >= 500) {
+    console.error(err);
+  }
+
+  res.status(statusCode).json({
+    error: statusCode >= 500
+      ? "Something went wrong on the Chicago Insider backend."
+      : err.message,
+    code: err.code || "API_ERROR"
   });
 });
 

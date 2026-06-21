@@ -2,6 +2,7 @@ const seedPlaces = require("../data/chicagoPlacesSeed.json");
 const { env, getGooglePlacesApiKey } = require("../config/environment");
 
 const PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
+const PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places";
 const PLACE_FIELD_MASK = [
   "places.id",
   "places.displayName",
@@ -18,6 +19,23 @@ const PLACE_FIELD_MASK = [
   "places.websiteUri",
   "places.googleMapsUri",
   "places.regularOpeningHours"
+].join(",");
+const PLACE_DETAILS_FIELD_MASK = [
+  "id",
+  "displayName",
+  "formattedAddress",
+  "shortFormattedAddress",
+  "location",
+  "photos",
+  "primaryType",
+  "primaryTypeDisplayName",
+  "types",
+  "priceLevel",
+  "rating",
+  "userRatingCount",
+  "websiteUri",
+  "googleMapsUri",
+  "regularOpeningHours"
 ].join(",");
 
 const CHICAGO_BOUNDS = {
@@ -209,6 +227,8 @@ function mapGooglePlace(place, categoryHint = "") {
   return {
     id: place.id,
     googlePlaceId: place.id,
+    place_id: place.id,
+    google_place_id: place.id,
     name,
     category,
     type: category === "Food" ? "food" : category === "Bar" ? "bar" : price === "Free" ? "free" : "activity",
@@ -340,6 +360,31 @@ async function textSearch(filters = {}, pageSize = 12) {
   return places;
 }
 
+async function getGooglePlaceDetails(googlePlaceId) {
+  const apiKey = googlePlacesApiKey();
+  if (!apiKey) throw new Error("Missing GOOGLE_PLACES_API_KEY for Google Places API.");
+  if (!googlePlaceId) throw new Error("Missing Google place id.");
+
+  const response = await fetch(`${PLACE_DETAILS_URL}/${encodeURIComponent(googlePlaceId)}`, {
+    headers: {
+      "Referer": googlePlacesReferer(),
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": PLACE_DETAILS_FIELD_MASK
+    }
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google Places Details failed (${response.status}): ${errorText.slice(0, 240)}`);
+  }
+
+  return response.json();
+}
+
 async function getDefaultGooglePlaces(limit = 18) {
   const searches = [
     { category: "Food", prompt: "popular restaurants" },
@@ -395,6 +440,8 @@ function fallbackPlaces(filters = {}, limit = 12) {
       ...place,
       id: place.id || normalize(place.name).replace(/[^a-z0-9]+/g, "-"),
       googlePlaceId: "",
+      place_id: "",
+      google_place_id: "",
       image: place.imageUrl,
       type: normalize(place.category) === "food" ? "food" : normalize(place.category) === "bar" ? "bar" : normalize(place.price) === "free" ? "free" : "activity",
       rating: place.rating || 4.2,
@@ -431,6 +478,7 @@ async function searchChicagoPlaces(filters = {}, options = {}) {
 
 module.exports = {
   CHICAGO_BOUNDS,
+  getGooglePlaceDetails,
   googlePlacesApiKey,
   googlePlacesReferer,
   searchChicagoPlaces

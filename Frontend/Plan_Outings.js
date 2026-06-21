@@ -12,11 +12,9 @@ const outingFilterBtn = document.querySelector("#outingFilterBtn");
 const collectionFilterMenu = document.querySelector("#collectionFilterMenu");
 const outingFilterMenu = document.querySelector("#outingFilterMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
+const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
-const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -287,6 +285,41 @@ function normalizeApiPlace(place) {
   };
 }
 
+function normalizeStoredPlace(place = {}) {
+  const metadata = place.metadata || {};
+  const googleId = place.google_place_id || place.googlePlaceId || place.id;
+  return {
+    id: googleId?.startsWith?.("local:") ? googleId.slice(6) : googleId,
+    supabasePlaceId: place.supabasePlaceId || place.id,
+    name: place.name || "Chicago place",
+    category: place.category || "Activity",
+    type: metadata.type || String(place.category || "activity").toLowerCase(),
+    price: metadata.price || "$$",
+    neighborhood: metadata.neighborhood || "Chicago",
+    image: resolveAssetUrl(metadata.image || "assets/pixel-chicago-hero.png"),
+    description: place.formatted_address || "Saved Chicago place.",
+    note: metadata.note || "Saved to your PlayBook"
+  };
+}
+
+function normalizeApiOuting(outing = {}) {
+  const outingPlaces = outing.outing_places || [];
+  const normalizedPlaces = outingPlaces.map((entry) => normalizeStoredPlace(entry.place));
+  const images = normalizedPlaces.length
+    ? normalizedPlaces.slice(0, 3).map((place) => place.image)
+    : [resolveAssetUrl("assets/pixel-chicago-hero.png")];
+
+  return {
+    id: outing.id,
+    title: outing.title || "Untitled Outing",
+    filter: "adventure",
+    location: normalizedPlaces[0]?.neighborhood || "Chicago",
+    duration: `${normalizedPlaces.length} places | ${(outing.outing_contributors || []).length} contributors`,
+    time: outing.starts_at ? new Date(outing.starts_at).toLocaleString() : "No date set",
+    images
+  };
+}
+
 async function loadPlacesFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/places`);
   if (!response.ok) throw new Error("Could not load Google Places");
@@ -297,6 +330,24 @@ async function loadPlacesFromApi() {
   places = data.places.map(normalizeApiPlace);
   outings = buildOutings();
   playbookPlaces = loadPlaybookPlaces();
+}
+
+async function loadPlaybookPlacesFromApi() {
+  const storedPlaces = await auth.getDefaultPlaybookPlaces();
+  if (!storedPlaces.length) {
+    playbookPlaces = [];
+    savePlaybookPlaces();
+    return;
+  }
+  playbookPlaces = storedPlaces.map(normalizeStoredPlace);
+  savePlaybookPlaces();
+}
+
+async function loadOutingsFromApi() {
+  const apiOutings = await auth.getOutings();
+  if (apiOutings.length) {
+    outings = apiOutings.map(normalizeApiOuting);
+  }
 }
 
 function outingCard(outing) {
@@ -344,6 +395,7 @@ function renderCollections() {
     ? filteredPlaces.map(placeTile).join("")
     : `<p class="drop-hint">No collection matches.</p>`;
   skeletons?.markLoaded(collectionGrid);
+  window.cacheDisplayedPlaces?.(filteredPlaces);
 }
 
 function renderOutings() {
@@ -369,12 +421,20 @@ function renderPlaybook() {
   skeletons?.markLoaded(playbookList);
 }
 
-function addPlaceToPlaybook(placeId) {
+async function addPlaceToPlaybook(placeId) {
   const place = places.find((item) => item.id === placeId);
   if (!place) return;
   if (playbookPlaces.some((selectedPlace) => selectedPlace.id === place.id)) return;
 
-  updatePlaybookPlaces([...playbookPlaces, place]);
+  try {
+    const playbookPlace = await auth.addPlaceToDefaultPlaybook(place);
+    updatePlaybookPlaces([
+      ...playbookPlaces,
+      { ...place, supabasePlaceId: playbookPlace.place_id }
+    ]);
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function setActiveMenuButton(menu, value) {
@@ -474,11 +534,11 @@ playbookList.addEventListener("dragleave", () => {
   playbookList.classList.remove("drag-over");
 });
 
-playbookList.addEventListener("drop", (event) => {
+playbookList.addEventListener("drop", async (event) => {
   event.preventDefault();
   playbookList.classList.remove("drag-over");
 
-  addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
+  await addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
 });
 
 addBlankStopBtn.addEventListener("dragover", (event) => {
@@ -490,25 +550,30 @@ addBlankStopBtn.addEventListener("dragleave", () => {
   addBlankStopBtn.classList.remove("drag-over");
 });
 
-addBlankStopBtn.addEventListener("drop", (event) => {
+addBlankStopBtn.addEventListener("drop", async (event) => {
   event.preventDefault();
   addBlankStopBtn.classList.remove("drag-over");
 
-  addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
+  await addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
 });
 
-playbookList.addEventListener("click", (event) => {
+playbookList.addEventListener("click", async (event) => {
   const removeButton = event.target.closest(".remove-stop");
   if (!removeButton) return;
 
   const card = removeButton.closest(".playbook-card");
   const index = Number(card.dataset.playbookIndex);
+  const place = playbookPlaces[index];
+  if (place?.supabasePlaceId) {
+    await auth.deletePlaceFromDefaultPlaybook(place.supabasePlaceId).catch(console.error);
+  }
   updatePlaybookPlaces(playbookPlaces.filter((_, itemIndex) => itemIndex !== index));
 });
 
-addBlankStopBtn.addEventListener("click", () => {
+addBlankStopBtn.addEventListener("click", async () => {
   const nextPlace = places.find((place) => !playbookPlaces.some((selected) => selected.id === place.id)) || places[0];
-  updatePlaybookPlaces([...playbookPlaces, nextPlace]);
+  if (!nextPlace) return;
+  await addPlaceToPlaybook(nextPlace.id);
 });
 
 createOutingBtn.addEventListener("click", () => {
@@ -520,24 +585,32 @@ document.addEventListener("click", closeMenus);
 setActiveMenuButton(collectionFilterMenu, activeCollectionFilter);
 setActiveMenuButton(outingFilterMenu, activeOutingFilter);
 
-function initializePlannerPage() {
+async function initializePlannerPage() {
+  if (!await auth.requireAuth()) return;
+
   if (!skeletons) {
-    loadPlacesFromApi().catch(console.error).finally(() => {
-      renderCollections();
-      renderOutings();
-      renderPlaybook();
-    });
+    await loadPlacesFromApi().catch(console.error);
+    await Promise.all([
+      loadPlaybookPlacesFromApi().catch(console.error),
+      loadOutingsFromApi().catch(console.error)
+    ]);
+    renderCollections();
+    renderOutings();
+    renderPlaybook();
     return;
   }
 
   skeletons.showSpotTiles(collectionGrid, 6);
   skeletons.showOutingCards(outingGrid, 3);
   skeletons.showPlaybookCards(playbookList, 2);
-  loadPlacesFromApi().catch(console.error).finally(() => {
-    renderCollections();
-    renderOutings();
-    renderPlaybook();
-  });
+  await loadPlacesFromApi().catch(console.error);
+  await Promise.all([
+    loadPlaybookPlacesFromApi().catch(console.error),
+    loadOutingsFromApi().catch(console.error)
+  ]);
+  renderCollections();
+  renderOutings();
+  renderPlaybook();
 }
 
 initializePlannerPage();

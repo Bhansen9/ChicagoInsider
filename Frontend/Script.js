@@ -13,6 +13,7 @@ const heroSearchInput = document.querySelector("#heroSearchInput");
 const heroBgImageA = document.querySelector("#heroBgImageA");
 const heroBgImageB = document.querySelector("#heroBgImageB");
 const skeletons = window.ChicagoInsiderSkeletons;
+const auth = window.ChicagoInsiderAuth;
 
 const chicagoHeroSlides = [
   "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Skyline%20on%20the%20Chicago%20River.jpg?width=1800",
@@ -52,11 +53,7 @@ const PLACE_IMAGE_FALLBACKS = {
   "Garfield Park Conservatory": "https://commons.wikimedia.org/wiki/Special:FilePath/Garfield%20Park%20Conservatory%20%28Chicago%29%20%2838106651681%29.jpg?width=900"
 };
 
-const isBackendOrigin =
-  ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -73,6 +70,7 @@ let hasLoadedInitialPlaces = false;
 let heroSlideIndex = 0;
 let showingHeroImageA = true;
 let heroSlideshowTimer;
+let placesById = new Map();
 
 const chicagoMapBounds = {
   north: 41.96,
@@ -376,7 +374,7 @@ function placeCard(place) {
         <p>${escapeHtml(place.description)}</p>
         <p class="match-reason">${escapeHtml(place.matchReason)}</p>
         <p class="vibes">${vibes}</p>
-        <button type="button">Save Spot</button>
+        <button type="button" data-save-place-id="${escapeHtml(place.id)}">Save Spot</button>
       </div>
     </article>
   `;
@@ -384,6 +382,7 @@ function placeCard(place) {
 
 function renderRecommendations(recommendations, parsedFilters = {}) {
   updateMapMarkers(recommendations);
+  placesById = new Map(recommendations.map((place) => [String(place.id), place]));
 
   if (!recommendations.length) {
     placeGrid.innerHTML = `
@@ -398,6 +397,7 @@ function renderRecommendations(recommendations, parsedFilters = {}) {
 
   placeGrid.innerHTML = recommendations.map(placeCard).join("");
   skeletons?.markLoaded(placeGrid);
+  window.cacheDisplayedPlaces?.(recommendations);
 
   const activeFilters = Object.entries(parsedFilters)
     .filter(([, value]) => value)
@@ -567,6 +567,30 @@ heroSearchForm.addEventListener("submit", async (event) => {
     assistantChat.innerHTML = topPlaces.length
       ? `<p><strong>You:</strong> ${escapeHtml(prompt)}</p><p><strong>AI:</strong> Try ${topPlaces.join(", ")}.</p>`
       : `<p><strong>You:</strong> ${escapeHtml(prompt)}</p><p><strong>AI:</strong> I could not find a strong match yet.</p>`;
+  }
+});
+
+placeGrid.addEventListener("click", async (event) => {
+  const saveButton = event.target.closest("button[data-save-place-id]");
+  if (!saveButton) return;
+
+  const place = placesById.get(String(saveButton.dataset.savePlaceId));
+  if (!place) return;
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+    await auth.saveSpot(place);
+    saveButton.textContent = "Saved";
+    saveButton.classList.add("is-saved");
+  } catch (error) {
+    if (error.status !== 401) {
+      console.error(error);
+      saveButton.textContent = "Try Again";
+    }
+  } finally {
+    saveButton.disabled = false;
   }
 });
 

@@ -6,6 +6,7 @@
   <title>Plan New Outing | ChicagoInsider</title>
   <link rel="stylesheet" href="Plan_Outings.css?v=25" />
   <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
+  <link rel="stylesheet" href="Auth.css?v=1" />
 </head>
 <body>
   <div class="outing-shell">
@@ -45,7 +46,10 @@
           <a href="Full_Collections_Page.html">Full Collections</a>
         </nav>
         <h2>Plan New Outing</h2>
-        <a class="profile-pill" href="Profile_Page.html">Profile</a>
+        <div class="auth-user-chip">
+          <a class="profile-pill" href="Profile_Page.html" data-auth-username>Profile</a>
+          <button class="auth-logout-button" data-logout-button type="button">Logout</button>
+        </div>
       </header>
 
       <section class="planner-section">
@@ -110,6 +114,8 @@
   </div>
 
   <script src="Skeleton_Loaders.js?v=1"></script>
+  <script src="Place_Cache.js?v=1"></script>
+  <script src="Auth_Client.js?v=1"></script>
   <script src="Plan_Outings.js?v=12"></script>
 </body>
 </html>

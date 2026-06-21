@@ -2,11 +2,9 @@ const trendGrid = document.querySelector("#trendGrid");
 const savedTrendCount = document.querySelector("#savedTrendCount");
 const trendTabs = document.querySelectorAll(".trend-tab");
 const skeletons = window.ChicagoInsiderSkeletons;
+const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
-const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -96,6 +94,7 @@ let trendingPlaces = [
 
 let activeFilter = "all";
 let savedPlaceIds = loadSavedPlaceIds();
+let savedSpotByKey = new Map();
 
 function loadSavedPlaceIds() {
   try {
@@ -114,6 +113,53 @@ function saveSavedPlaceIds() {
   }
 }
 
+function keysForStoredPlace(place = {}) {
+  return [
+    place.id,
+    place.google_place_id,
+    place.googlePlaceId,
+    place.google_place_id?.startsWith("local:") ? place.google_place_id.slice(6) : "",
+    place.name
+  ].filter(Boolean).map(String);
+}
+
+function keysForDisplayPlace(place = {}) {
+  return [
+    place.id,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    `local:${place.id}`,
+    place.name
+  ].filter(Boolean).map(String);
+}
+
+function rememberSavedSpot(savedSpot) {
+  keysForStoredPlace(savedSpot.place).forEach((key) => {
+    savedSpotByKey.set(key, savedSpot);
+    if (!savedPlaceIds.includes(key)) savedPlaceIds.push(key);
+  });
+}
+
+async function loadSavedSpotsFromApi() {
+  if (!auth.getSession()) return;
+  const savedSpots = await auth.getSavedSpots();
+  savedPlaceIds = [];
+  savedSpotByKey = new Map();
+  savedSpots.forEach(rememberSavedSpot);
+  saveSavedPlaceIds();
+}
+
+function savedSpotForPlace(place) {
+  return keysForDisplayPlace(place)
+    .map((key) => savedSpotByKey.get(key))
+    .find(Boolean);
+}
+
+function isPlaceSaved(place) {
+  return keysForDisplayPlace(place).some((key) => savedPlaceIds.includes(key));
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -124,7 +170,7 @@ function escapeHtml(value) {
 }
 
 function renderTrendCard(place) {
-  const isSaved = savedPlaceIds.includes(place.id);
+  const isSaved = isPlaceSaved(place);
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
   const heat = place.heat || (place.rating ? `${Number(place.rating).toFixed(1)} on Google` : "Chicago pick");
   const reason = place.reason || place.description || "A Google Places result inside Chicago.";
@@ -184,8 +230,9 @@ function renderTrends() {
 
   trendGrid.innerHTML = filteredPlaces.map(renderTrendCard).join("");
   skeletons?.markLoaded(trendGrid);
+  window.cacheDisplayedPlaces?.(filteredPlaces);
   skeletons?.clearStat(savedTrendCount);
-  savedTrendCount.textContent = trendingPlaces.filter((place) => savedPlaceIds.includes(place.id)).length;
+  savedTrendCount.textContent = trendingPlaces.filter(isPlaceSaved).length;
 }
 
 trendTabs.forEach((tab) => {
@@ -198,28 +245,48 @@ trendTabs.forEach((tab) => {
   });
 });
 
-trendGrid.addEventListener("click", (event) => {
+trendGrid.addEventListener("click", async (event) => {
   const saveButton = event.target.closest("button[data-place-id]");
   if (!saveButton) return;
 
   const placeId = saveButton.dataset.placeId;
-  savedPlaceIds = savedPlaceIds.includes(placeId)
-    ? savedPlaceIds.filter((id) => id !== placeId)
-    : [...savedPlaceIds, placeId];
+  const place = trendingPlaces.find((item) => String(item.id) === String(placeId));
+  if (!place) return;
 
-  saveSavedPlaceIds();
-  renderTrends();
+  saveButton.disabled = true;
+  try {
+    const savedSpot = savedSpotForPlace(place);
+    if (savedSpot) {
+      await auth.deleteSavedSpot(savedSpot.id);
+    } else {
+      await auth.saveSpot(place);
+    }
+    await loadSavedSpotsFromApi();
+  } catch (error) {
+    if (error.status !== 401) console.error(error);
+  } finally {
+    saveButton.disabled = false;
+    renderTrends();
+  }
 });
 
-function initializeTrendingPage() {
+async function initializeTrendingPage() {
   if (!skeletons) {
-    loadTrendingPlacesFromApi().catch(console.error).finally(renderTrends);
+    await Promise.all([
+      loadTrendingPlacesFromApi().catch(console.error),
+      loadSavedSpotsFromApi().catch(console.error)
+    ]);
+    renderTrends();
     return;
   }
 
   skeletons.showTrendCards(trendGrid, 6);
   skeletons.showStat(savedTrendCount);
-  loadTrendingPlacesFromApi().catch(console.error).finally(renderTrends);
+  await Promise.all([
+    loadTrendingPlacesFromApi().catch(console.error),
+    loadSavedSpotsFromApi().catch(console.error)
+  ]);
+  renderTrends();
 }
 
 initializeTrendingPage();

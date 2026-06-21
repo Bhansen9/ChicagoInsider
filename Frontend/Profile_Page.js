@@ -3,14 +3,13 @@ const outingCount = document.querySelector("#outingCount");
 const workspaceCount = document.querySelector("#workspaceCount");
 const savedPlacesList = document.querySelector("#savedPlacesList");
 const activityList = document.querySelector("#activityList");
+const profileBio = document.querySelector("#profileBio");
 const neighborhoodPreference = document.querySelector("#neighborhoodPreference");
 const vibePreference = document.querySelector("#vibePreference");
 const budgetPreference = document.querySelector("#budgetPreference");
 const skeletons = window.ChicagoInsiderSkeletons;
-const isBackendOrigin = ["localhost:3000", "127.0.0.1:3000"].includes(window.location.host);
-const API_BASE_URL = window.location.protocol === "file:" || !isBackendOrigin
-  ? "http://localhost:3000"
-  : "";
+const auth = window.ChicagoInsiderAuth;
+const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -112,6 +111,18 @@ function normalizeApiPlace(place) {
   };
 }
 
+function normalizeStoredPlace(place = {}) {
+  const metadata = place.metadata || {};
+  return {
+    id: place.google_place_id || place.id,
+    name: place.name || "Chicago place",
+    category: place.category || "Chicago spot",
+    price: metadata.price || "",
+    neighborhood: metadata.neighborhood || "Chicago",
+    image: resolveAssetUrl(metadata.image || "assets/pixel-chicago-hero.png")
+  };
+}
+
 async function loadPlacesFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/places`);
   if (!response.ok) throw new Error("Could not load Google Places");
@@ -152,8 +163,8 @@ function placeById(placeId) {
   return places.find((place) => place.id === placeId);
 }
 
-function renderSavedPlaces(savedIds) {
-  const savedPlaces = savedIds.map(placeById).filter(Boolean);
+function renderSavedPlaces(savedSpots) {
+  const savedPlaces = savedSpots.map((savedSpot) => normalizeStoredPlace(savedSpot.place)).filter(Boolean);
 
   savedPlacesList.innerHTML = savedPlaces.length
     ? savedPlaces.map((place) => `
@@ -168,6 +179,7 @@ function renderSavedPlaces(savedIds) {
     `).join("")
     : `<div class="empty-state">No saved places yet.</div>`;
   skeletons?.markLoaded(savedPlacesList);
+  window.cacheDisplayedPlaces?.(savedPlaces);
 }
 
 function renderActivity(savedOutings) {
@@ -175,7 +187,7 @@ function renderActivity(savedOutings) {
     ? savedOutings.slice(-4).reverse().map((outing) => `
       <article class="activity-item">
         <h3>${escapeHtml(outing.title || "Untitled Outing")}</h3>
-        <p>${escapeHtml(outing.date || "No date")} | ${(outing.playbookPlaceIds || []).length} places | ${(outing.contributors || outing.sharedWith || []).length} contributors</p>
+        <p>${escapeHtml((outing.starts_at || "").slice(0, 10) || "No date")} | ${(outing.outing_places || []).length} places | ${(outing.outing_contributors || []).length} contributors</p>
       </article>
     `).join("")
     : `<div class="empty-state">No saved outing activity yet.</div>`;
@@ -202,17 +214,22 @@ function savePreferences() {
   });
 }
 
-function renderProfile() {
-  const savedIds = readJson(playbookStorageKey, []);
-  const savedOutings = readJson(savedOutingsStorageKey, []);
+async function renderProfile() {
+  const account = await auth.getMe();
+  const savedSpots = account.savedSpots || [];
+  const savedOutings = account.outings || [];
   const workspaceIds = readJson(workspaceStorageKey, []);
+  const profile = account.profile || auth.getProfile();
 
   [savedCount, outingCount, workspaceCount].forEach((counter) => skeletons?.clearStat(counter));
-  savedCount.textContent = Array.isArray(savedIds) ? savedIds.length : 0;
+  savedCount.textContent = savedSpots.length;
   outingCount.textContent = Array.isArray(savedOutings) ? savedOutings.length : 0;
   workspaceCount.textContent = Array.isArray(workspaceIds) ? workspaceIds.length : 0;
+  if (profileBio) {
+    profileBio.textContent = profile?.bio || "Curating Chicago plans around rooftops, walkable neighborhoods, museums, and low-friction group outings.";
+  }
 
-  renderSavedPlaces(Array.isArray(savedIds) ? savedIds : []);
+  renderSavedPlaces(savedSpots);
   renderActivity(Array.isArray(savedOutings) ? savedOutings : []);
   loadPreferences();
 }
@@ -221,16 +238,20 @@ function renderProfile() {
   select.addEventListener("change", savePreferences);
 });
 
-function initializeProfilePage() {
+async function initializeProfilePage() {
+  if (!await auth.requireAuth()) return;
+
   if (!skeletons) {
-    loadPlacesFromApi().catch(console.error).finally(renderProfile);
+    loadPlacesFromApi().catch(console.error);
+    renderProfile().catch(console.error);
     return;
   }
 
   [savedCount, outingCount, workspaceCount].forEach((counter) => skeletons.showStat(counter));
   skeletons.showSavedItems(savedPlacesList, 3);
   skeletons.showActivityItems(activityList, 3);
-  loadPlacesFromApi().catch(console.error).finally(renderProfile);
+  loadPlacesFromApi().catch(console.error);
+  renderProfile().catch(console.error);
 }
 
 initializeProfilePage();

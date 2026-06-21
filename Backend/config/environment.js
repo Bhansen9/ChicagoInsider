@@ -15,6 +15,7 @@ function unique(values) {
 function loadEnv() {
   const candidates = unique([
     path.resolve(process.cwd(), ".env"),
+    path.resolve(backendDir, ".env"),
     path.resolve(appDir, ".env"),
     path.resolve(projectDir, ".env")
   ]);
@@ -48,7 +49,7 @@ function envList(name, fallback = []) {
 }
 
 function getPort() {
-  const port = Number(env("PORT", "3000"));
+  const port = Number(env("NODE_PORT", "3000"));
   return Number.isInteger(port) && port > 0 ? port : 3000;
 }
 
@@ -71,13 +72,14 @@ function getGooglePlacesApiKey() {
 function getSupabaseConfig() {
   return {
     url: env("SUPABASE_URL"),
-    anonKey: env("SUPABASE_ANON_KEY")
+    anonKey: env("SUPABASE_ANON_KEY"),
+    serviceRoleKey: env("SUPABASE_SERVICE_ROLE_KEY")
   };
 }
 
 function isSupabaseConfigured() {
-  const { url, anonKey } = getSupabaseConfig();
-  return Boolean(url && anonKey);
+  const { url, anonKey, serviceRoleKey } = getSupabaseConfig();
+  return Boolean(url && (serviceRoleKey || anonKey));
 }
 
 module.exports = {

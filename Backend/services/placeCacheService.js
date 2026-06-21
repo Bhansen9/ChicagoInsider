@@ -1,0 +1,184 @@
+const supabase = require("../data/supabaseClient");
+const { getGooglePlaceDetails, googlePlacesApiKey } = require("./googlePlacesService");
+
+class PlaceCacheError extends Error {
+  constructor(message, statusCode = 500, code = "PLACE_CACHE_ERROR", cause = null) {
+    super(message);
+    this.name = "PlaceCacheError";
+    this.statusCode = statusCode;
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+function normalizeGooglePlaceId(googlePlaceId) {
+  return String(googlePlaceId || "").trim();
+}
+
+function inferCategory(place) {
+  const typeText = `${place.primaryType || ""} ${(place.types || []).join(" ")}`.toLowerCase();
+
+  if (typeText.includes("restaurant") || typeText.includes("cafe") || typeText.includes("meal")) {
+    return "Food";
+  }
+  if (typeText.includes("bar") || typeText.includes("night_club")) return "Bar";
+  if (typeText.includes("museum") || typeText.includes("art_gallery")) return "Museum";
+  if (typeText.includes("tourist_attraction") || typeText.includes("park")) return "Activity";
+
+  return place.primaryTypeDisplayName?.text || "Activity";
+}
+
+function mapGoogleDetailsToPlaceRow(googlePlace) {
+  return {
+    google_place_id: googlePlace.id,
+    name: googlePlace.displayName?.text || "Unnamed place",
+    address: googlePlace.formattedAddress || googlePlace.shortFormattedAddress || "",
+    latitude: googlePlace.location?.latitude ?? null,
+    longitude: googlePlace.location?.longitude ?? null,
+    category: inferCategory(googlePlace)
+  };
+}
+
+async function findPlaceByGooglePlaceId(googlePlaceId) {
+  try {
+    const { data, error } = await supabase
+      .from("places")
+      .select("*")
+      .eq("google_place_id", googlePlaceId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    throw new PlaceCacheError(
+      "Could not check Supabase for this place.",
+      500,
+      "SUPABASE_LOOKUP_FAILED",
+      error
+    );
+  }
+}
+
+function usesMissingAddressColumn(error) {
+  return (
+    error?.code === "PGRST204" &&
+    String(error.message || "").toLowerCase().includes("address")
+  );
+}
+
+function isSupabasePermissionError(error) {
+  return error?.code === "42501";
+}
+
+async function insertPlaceRow(placeRow) {
+  try {
+    const { data, error } = await supabase
+      .from("places")
+      .insert(placeRow)
+      .select("*")
+      .single();
+
+    if (!error) return data;
+
+    if (usesMissingAddressColumn(error)) {
+      const { address, ...rest } = placeRow;
+      const fallbackRow = {
+        ...rest,
+        formatted_address: address
+      };
+
+      const fallbackResult = await supabase
+        .from("places")
+        .insert(fallbackRow)
+        .select("*")
+        .single();
+
+      if (!fallbackResult.error) return fallbackResult.data;
+      throw fallbackResult.error;
+    }
+
+    if (error.code === "23505") {
+      return findPlaceByGooglePlaceId(placeRow.google_place_id);
+    }
+
+    throw error;
+  } catch (error) {
+    if (error.code === "23505") {
+      return findPlaceByGooglePlaceId(placeRow.google_place_id);
+    }
+
+    if (isSupabasePermissionError(error)) {
+      throw new PlaceCacheError(
+        "Supabase rejected the insert. Add SUPABASE_SERVICE_ROLE_KEY to Backend/.env so only the backend can bypass RLS.",
+        500,
+        "SUPABASE_INSERT_PERMISSION_DENIED",
+        error
+      );
+    }
+
+    throw new PlaceCacheError(
+      "Could not save the Google place into Supabase.",
+      500,
+      "SUPABASE_INSERT_FAILED",
+      error
+    );
+  }
+}
+
+async function getOrCreatePlace(googlePlaceIdInput) {
+  const googlePlaceId = normalizeGooglePlaceId(googlePlaceIdInput);
+  if (!googlePlaceId) {
+    throw new PlaceCacheError("googlePlaceId is required.", 400, "MISSING_GOOGLE_PLACE_ID");
+  }
+
+  // 1. Cache lookup: Supabase is the source of truth once a Google place has been saved.
+  const existingPlace = await findPlaceByGooglePlaceId(googlePlaceId);
+  if (existingPlace) {
+    return { place: existingPlace, source: "supabase" };
+  }
+
+  // 2. Cache miss: this is the expected "not found in Supabase" path, so fetch Google next.
+  if (!googlePlacesApiKey()) {
+    throw new PlaceCacheError(
+      "Google Places API key is missing. Set GOOGLE_PLACES_API_KEY in .env.",
+      500,
+      "MISSING_GOOGLE_PLACES_API_KEY"
+    );
+  }
+
+  let googlePlace;
+  try {
+    googlePlace = await getGooglePlaceDetails(googlePlaceId);
+  } catch (error) {
+    throw new PlaceCacheError(
+      "Google Places API failed while fetching this place.",
+      502,
+      "GOOGLE_PLACES_API_FAILED",
+      error
+    );
+  }
+
+  if (!googlePlace || !googlePlace.id) {
+    throw new PlaceCacheError("Google Places could not find this place.", 404, "GOOGLE_PLACE_NOT_FOUND");
+  }
+
+  // 3. Persist and return the saved row. The unique index protects against duplicate races.
+  const savedPlace = await insertPlaceRow(mapGoogleDetailsToPlaceRow(googlePlace));
+  if (!savedPlace) {
+    throw new PlaceCacheError(
+      "The place was inserted by another request but could not be loaded.",
+      500,
+      "SUPABASE_INSERT_LOOKUP_FAILED"
+    );
+  }
+
+  return { place: savedPlace, source: "google" };
+}
+
+module.exports = {
+  PlaceCacheError,
+  getOrCreatePlace
+};
