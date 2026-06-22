@@ -3,6 +3,7 @@ const outingSearch = document.querySelector("#outingSearch");
 const collectionGrid = document.querySelector("#collectionGrid");
 const outingGrid = document.querySelector("#outingGrid");
 const playbookList = document.querySelector("#playbookList");
+const playbookPanel = document.querySelector(".playbook-panel");
 const playbookFilterBtn = document.querySelector("#playbookFilterBtn");
 const playbookFilterMenu = document.querySelector("#playbookFilterMenu");
 const addBlankStopBtn = document.querySelector("#addBlankStopBtn");
@@ -21,193 +22,24 @@ function resolveAssetUrl(url) {
   return `${API_BASE_URL}${url}`;
 }
 
-let places = [
-  {
-    id: "art-institute",
-    name: "The Art Institute of Chicago",
-    category: "Museum",
-    type: "activity",
-    price: "$$",
-    neighborhood: "Downtown",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Art%20Institute%20of%20Chicago%20Lion%20%288519756704%29.jpg?width=500",
-    description: "One of Chicago's most well-known museums, great for art, history, and culture.",
-    note: "Arts, Classic, Quiet"
-  },
-  {
-    id: "riverwalk",
-    name: "Chicago Riverwalk",
-    category: "Activity",
-    type: "activity",
-    price: "Free",
-    neighborhood: "River North",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Riverwalk%20%2851556708640%29.jpg?width=500",
-    description: "A scenic walkway along the Chicago River with restaurants, views, and boat tour access.",
-    note: "Scenic, Walkable, Romantic"
-  },
-  {
-    id: "au-cheval",
-    name: "Au Cheval",
-    category: "Food",
-    type: "food",
-    price: "$$$",
-    neighborhood: "West Loop",
-    image: "https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg",
-    description: "A popular West Loop restaurant known for its burger and late-night dining experience.",
-    note: "Trendy, Busy, Foodie"
-  },
-  {
-    id: "londonhouse",
-    name: "LondonHouse Rooftop",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "River North",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/London%20House%20Rooftop%2C%20Chicago.jpg?width=500",
-    description: "An upscale rooftop bar with strong downtown and river views.",
-    note: "Fancy, Scenic, Romantic"
-  },
-  {
-    id: "small-cheval",
-    name: "Small Cheval",
-    category: "Food",
-    type: "food",
-    price: "$$",
-    neighborhood: "Wicker Park",
-    image: "https://images.squarespace-cdn.com/content/v1/664b756924d01f2bafa19992/bfae2152-f1c0-4280-80f5-11ea7e0860db/new-shots-outdoor-2.jpeg",
-    description: "A casual burger spot with a simple menu and relaxed Chicago neighborhood feel.",
-    note: "Casual, Quick, Tasty"
-  },
-  {
-    id: "violet-hour",
-    name: "The Violet Hour",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "Wicker Park",
-    image: "https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg",
-    description: "A moody cocktail bar for quiet drinks and a polished night out.",
-    note: "Hidden, Cocktails, Date"
-  },
-  {
-    id: "millennium",
-    name: "Millennium Park",
-    category: "Landmark",
-    type: "free",
-    price: "Free",
-    neighborhood: "Downtown",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Millennium%20park%2Cchicago.JPG?width=500",
-    description: "A classic downtown landmark known for Cloud Gate, public art, and skyline views.",
-    note: "Touristy, Scenic, Photo Friendly"
-  },
-  {
-    id: "cindy",
-    name: "Cindy's Rooftop",
-    category: "Food",
-    type: "food",
-    price: "$$$",
-    neighborhood: "Loop",
-    image: "https://cdn.prod.website-files.com/692deee1433d0acae210e525/6930b2963bc306834dd9c99c_Daniel%20Kelleghan%20Photography-2024-03-25%20Cindys57247-HDR.avif",
-    description: "A lively rooftop restaurant overlooking Millennium Park and Lake Michigan.",
-    note: "Views, Brunch, Groups"
-  }
-];
-
-let outings = [
-  {
-    id: "thrifting",
-    title: "Thrifting Adventure",
-    filter: "adventure",
-    location: "Logan Square",
-    duration: "Could use more members?",
-    time: "May 16, 2026 - 1:00 PM - 5:00 PM",
-    images: [places[5].image, places[2].image, places[4].image]
-  },
-  {
-    id: "date-night",
-    title: "Date Night",
-    filter: "date",
-    location: "Loop",
-    duration: "Add new members?",
-    time: "May 28, 2026 - 3:00 PM - 10:00 PM",
-    images: [places[1].image, places[3].image, places[7].image]
-  },
-  {
-    id: "birthday",
-    title: "Birthday Bar Crawl",
-    filter: "birthday",
-    location: "River North",
-    duration: "Add new members?",
-    time: "May 30, 2026 - 10:30 PM - 2:00 AM",
-    images: [places[3].image, places[5].image, places[2].image]
-  },
-  {
-    id: "museum-day",
-    title: "Museum Day",
-    filter: "adventure",
-    location: "Downtown",
-    duration: "Quiet afternoon plan",
-    time: "Jun 4, 2026 - 11:00 AM - 4:00 PM",
-    images: [places[0].image, places[6].image, places[1].image]
-  }
-];
-
-function buildOutings() {
-  const imageAt = (index) => resolveAssetUrl(places[index % places.length]?.image || places[index % places.length]?.imageUrl || "assets/pixel-chicago-hero.png");
-
-  return [
-    {
-      id: "google-food-loop",
-      title: "Google Places Food Run",
-      filter: "adventure",
-      location: places[0]?.neighborhood || "Chicago",
-      duration: "Built from live Chicago places",
-      time: "Next weekend - 1:00 PM - 5:00 PM",
-      images: [imageAt(0), imageAt(1), imageAt(2)]
-    },
-    {
-      id: "google-date-night",
-      title: "Date Night",
-      filter: "date",
-      location: places[3]?.neighborhood || "Chicago",
-      duration: "Add new members?",
-      time: "Next Friday - 5:00 PM - 10:00 PM",
-      images: [imageAt(3), imageAt(4), imageAt(5)]
-    },
-    {
-      id: "google-bar-crawl",
-      title: "Chicago Night Out",
-      filter: "birthday",
-      location: places[6]?.neighborhood || "Chicago",
-      duration: "Add new members?",
-      time: "Saturday - 8:00 PM - 12:00 AM",
-      images: [imageAt(6), imageAt(7), imageAt(8)]
-    },
-    {
-      id: "google-museum-day",
-      title: "Museum & Views",
-      filter: "adventure",
-      location: places[9]?.neighborhood || "Chicago",
-      duration: "Quiet afternoon plan",
-      time: "Sunday - 11:00 AM - 4:00 PM",
-      images: [imageAt(9), imageAt(10), imageAt(11)]
-    }
-  ];
-}
+let places = [];
+let outings = [];
 
 let activeCollectionFilter = "all";
 let activeOutingFilter = "all";
 let playbookPlaces = loadPlaybookPlaces();
+let draggedPlaceId = "";
 
 function loadPlaybookPlaces() {
   try {
     const savedIds = JSON.parse(localStorage.getItem(playbookStorageKey) || "null");
-    if (!Array.isArray(savedIds)) return [places[2], places[5]];
+    if (!Array.isArray(savedIds)) return [];
 
     return savedIds
       .map((placeId) => places.find((place) => place.id === placeId))
       .filter(Boolean);
   } catch (error) {
-    return [places[2], places[5]];
+    return [];
   }
 }
 
@@ -234,6 +66,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function syncErrorText(error) {
+  if (!error) return "";
+  const detail = error.message || error.code || error.status;
+  return detail ? String(detail) : "Save failed";
+}
+
 function matchesSearch(item, query) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
@@ -254,8 +92,9 @@ function placeTile(place) {
   return `
     <article class="spot-tile" draggable="true" data-place-id="${escapeHtml(place.id)}">
       <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
+      <button class="remove-saved-spot" type="button" draggable="false" data-saved-spot-id="${escapeHtml(place.savedSpotId)}" aria-label="Remove ${escapeHtml(place.name)} from saved places">Remove</button>
       <h4>${escapeHtml(place.name)}</h4>
-      <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" draggable="false" />
       <p>${escapeHtml(place.description)}</p>
       <div class="spot-meta">${escapeHtml(place.note)}</div>
     </article>
@@ -264,6 +103,9 @@ function placeTile(place) {
 
 function playbookCard(place, index) {
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
+  const syncStatus = place.syncFailed
+    ? `<span class="sync-status">Sync failed${place.syncError ? `: ${escapeHtml(place.syncError)}` : ""}</span>`
+    : "";
   return `
     <article class="playbook-card" data-playbook-index="${index}">
       <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
@@ -271,35 +113,187 @@ function playbookCard(place, index) {
       <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
       <p>${escapeHtml(place.neighborhood)}</p>
       <p>${escapeHtml(place.note)}</p>
+      ${syncStatus}
       <button class="remove-stop" type="button" aria-label="Remove ${escapeHtml(place.name)}">Remove</button>
     </article>
   `;
 }
 
-function normalizeApiPlace(place) {
-  return {
-    ...place,
-    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
-    note: place.note || (place.vibes || []).join(", "),
-    type: place.type || String(place.category || "activity").toLowerCase()
+function displayPlaceId(place = {}) {
+  const rawId = String(place.google_place_id || place.googlePlaceId || place.place_id || place.id || "");
+  return rawId.startsWith("local:") ? rawId.slice(6) : rawId;
+}
+
+function priceFromStoredPlace(place = {}, metadata = {}) {
+  const priceByLevel = {
+    0: "Free",
+    1: "$",
+    2: "$$",
+    3: "$$$",
+    4: "$$$$"
   };
+
+  return metadata.price || place.price || priceByLevel[place.price_level] || "$$";
+}
+
+function typeFromStoredPlace(place = {}, metadata = {}) {
+  const category = String(place.category || "").toLowerCase();
+  const primaryType = String(place.primary_type || "").toLowerCase();
+  const price = priceFromStoredPlace(place, metadata);
+  const filterTypes = new Set(["activity", "bar", "food", "free"]);
+
+  if (metadata.type) return metadata.type;
+  if (filterTypes.has(primaryType)) return primaryType;
+  if (price === "Free") return "free";
+  if (category.includes("bar") || primaryType.includes("bar")) return "bar";
+  if (category.includes("food") || category.includes("restaurant") || primaryType.includes("restaurant")) return "food";
+  return category || primaryType || "activity";
+}
+
+function photoUrlFromName(photoName) {
+  if (!photoName) return "";
+
+  const params = new URLSearchParams({
+    name: photoName,
+    maxWidthPx: "640",
+    maxHeightPx: "420"
+  });
+
+  return `/api/places/photo?${params.toString()}`;
+}
+
+function imageFromStoredPlace(place = {}, metadata = {}) {
+  const rawPayload = place.raw_google_payload || {};
+  const photoReferences = Array.isArray(place.photo_references) ? place.photo_references : [];
+  const photoName = (
+    place.photoName ||
+    rawPayload.photoName ||
+    rawPayload.photos?.[0]?.name ||
+    photoReferences[0]
+  );
+
+  return resolveAssetUrl(
+    metadata.image ||
+    place.image ||
+    place.imageUrl ||
+    rawPayload.image ||
+    rawPayload.imageUrl ||
+    photoUrlFromName(photoName) ||
+    "assets/pixel-chicago-hero.png"
+  );
 }
 
 function normalizeStoredPlace(place = {}) {
   const metadata = place.metadata || {};
-  const googleId = place.google_place_id || place.googlePlaceId || place.id;
+  const price = priceFromStoredPlace(place, metadata);
   return {
-    id: googleId?.startsWith?.("local:") ? googleId.slice(6) : googleId,
+    id: displayPlaceId(place),
+    placeId: place.placeId || place.id,
+    googlePlaceId: place.google_place_id || place.googlePlaceId || place.place_id || "",
     supabasePlaceId: place.supabasePlaceId || place.id,
     name: place.name || "Chicago place",
     category: place.category || "Activity",
-    type: metadata.type || String(place.category || "activity").toLowerCase(),
-    price: metadata.price || "$$",
+    type: typeFromStoredPlace(place, metadata),
+    price,
     neighborhood: metadata.neighborhood || "Chicago",
-    image: resolveAssetUrl(metadata.image || "assets/pixel-chicago-hero.png"),
+    image: imageFromStoredPlace(place, metadata),
     description: place.formatted_address || "Saved Chicago place.",
     note: metadata.note || "Saved to your PlayBook"
   };
+}
+
+function normalizeSavedSpot(savedSpot = {}) {
+  if (!savedSpot.place) return null;
+
+  const place = normalizeStoredPlace(savedSpot.place);
+  return {
+    ...place,
+    savedSpotId: savedSpot.id,
+    note: savedSpot.notes || place.note || "Saved by you"
+  };
+}
+
+function placeMatchKeys(place = {}) {
+  return [
+    place.id,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    place.placeId,
+    place.supabasePlaceId,
+    place.name?.toLowerCase()
+  ].filter(Boolean).map(String);
+}
+
+function findPlaceByKey(placeId) {
+  const key = String(placeId || "");
+  if (!key) return null;
+  return places.find((place) => placeMatchKeys(place).includes(key));
+}
+
+function samePlace(left = {}, right = {}) {
+  const rightKeys = new Set(placeMatchKeys(right));
+  return placeMatchKeys(left).some((key) => rightKeys.has(key));
+}
+
+function usesPlaceholderImage(place = {}) {
+  return !place.image || String(place.image).includes("pixel-chicago-hero");
+}
+
+function uniquePlaces(nextPlaces) {
+  const byId = new Map();
+  nextPlaces.filter(Boolean).forEach((place) => {
+    if (!place.id || byId.has(place.id)) return;
+    byId.set(place.id, place);
+  });
+  return [...byId.values()];
+}
+
+function mergePlaceDisplayData(savedPlaces, discoveryPlaces) {
+  const discoveryByKey = new Map();
+  discoveryPlaces.forEach((place) => {
+    placeMatchKeys(place).forEach((key) => discoveryByKey.set(key, place));
+  });
+
+  return savedPlaces.map((place) => {
+    const match = placeMatchKeys(place).map((key) => discoveryByKey.get(key)).find(Boolean);
+    if (!match) return place;
+
+    return {
+      ...place,
+      image: usesPlaceholderImage(place) ? resolveAssetUrl(match.image || match.imageUrl || place.image) : place.image,
+      description: place.description === "Saved Chicago place." ? (match.description || place.description) : place.description,
+      neighborhood: place.neighborhood === "Chicago" ? (match.neighborhood || place.neighborhood) : place.neighborhood,
+      note: place.note === "Saved to your PlayBook" ? (match.note || (match.vibes || []).join(", ") || place.note) : place.note
+    };
+  });
+}
+
+async function loadDiscoveryPlacesForDisplay() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load place display fallbacks");
+
+  const data = await response.json();
+  return Array.isArray(data.places) ? data.places : [];
+}
+
+function currentUserId() {
+  const session = auth.getSession?.();
+  return session?.user?.id || session?.user_id || auth.getProfile?.()?.id || "";
+}
+
+function isOwnedOuting(outing = {}) {
+  const userId = currentUserId();
+  if (!userId) return true;
+
+  return [outing.owner_id, outing.user_id, outing.creator_user_id].some((id) => id === userId);
+}
+
+function outingFilterFor(outing = {}) {
+  const text = `${outing.title || ""} ${outing.description || ""}`.toLowerCase();
+  if (text.includes("date")) return "date";
+  if (text.includes("birthday")) return "birthday";
+  return "adventure";
 }
 
 function normalizeApiOuting(outing = {}) {
@@ -312,7 +306,7 @@ function normalizeApiOuting(outing = {}) {
   return {
     id: outing.id,
     title: outing.title || "Untitled Outing",
-    filter: "adventure",
+    filter: outingFilterFor(outing),
     location: normalizedPlaces[0]?.neighborhood || "Chicago",
     duration: `${normalizedPlaces.length} places | ${(outing.outing_contributors || []).length} contributors`,
     time: outing.starts_at ? new Date(outing.starts_at).toLocaleString() : "No date set",
@@ -320,34 +314,79 @@ function normalizeApiOuting(outing = {}) {
   };
 }
 
-async function loadPlacesFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/places`);
-  if (!response.ok) throw new Error("Could not load Google Places");
-
-  const data = await response.json();
-  if (!Array.isArray(data.places) || !data.places.length) return;
-
-  places = data.places.map(normalizeApiPlace);
-  outings = buildOutings();
+async function loadSavedPlacesFromApi() {
+  const savedSpots = await auth.getSavedSpots();
+  places = uniquePlaces(savedSpots.map(normalizeSavedSpot));
+  if (places.some(usesPlaceholderImage)) {
+    const cachedPlaces = await window.ChicagoInsiderPlaceCache?.cacheDisplayedPlaces(places).catch((error) => {
+      console.error(error);
+      return [];
+    });
+    if (cachedPlaces?.length) {
+      const refreshedSavedSpots = await auth.getSavedSpots();
+      places = uniquePlaces(refreshedSavedSpots.map(normalizeSavedSpot));
+    }
+  }
+  if (places.some(usesPlaceholderImage)) {
+    const discoveryPlaces = await loadDiscoveryPlacesForDisplay().catch((error) => {
+      console.error(error);
+      return [];
+    });
+    places = mergePlaceDisplayData(places, discoveryPlaces);
+  }
   playbookPlaces = loadPlaybookPlaces();
 }
 
 async function loadPlaybookPlacesFromApi() {
+  const localPlaces = loadPlaybookPlaces();
   const storedPlaces = await auth.getDefaultPlaybookPlaces();
-  if (!storedPlaces.length) {
+
+  const serverPlaces = storedPlaces.map(normalizeStoredPlace);
+  const mergedPlaces = [...serverPlaces];
+  localPlaces.forEach((localPlace) => {
+    if (!mergedPlaces.some((serverPlace) => samePlace(serverPlace, localPlace))) {
+      mergedPlaces.push({ ...localPlace, syncFailed: true });
+    }
+  });
+
+  if (!mergedPlaces.length) {
     playbookPlaces = [];
     savePlaybookPlaces();
     return;
   }
-  playbookPlaces = storedPlaces.map(normalizeStoredPlace);
+
+  playbookPlaces = await syncLocalPlaybookPlaces(mergedPlaces);
   savePlaybookPlaces();
+}
+
+async function syncLocalPlaybookPlaces(nextPlaces) {
+  let syncedPlaces = nextPlaces;
+  const localOnlyPlaces = syncedPlaces.filter((place) => place.syncFailed || !place.supabasePlaceId);
+
+  for (const place of localOnlyPlaces) {
+    try {
+      const playbookPlace = await auth.addPlaceToDefaultPlaybook(place);
+      syncedPlaces = syncedPlaces.map((selectedPlace) => (
+        samePlace(selectedPlace, place)
+          ? { ...selectedPlace, supabasePlaceId: playbookPlace.place_id, syncFailed: false, syncError: "" }
+          : selectedPlace
+      ));
+    } catch (error) {
+      console.error(error);
+      syncedPlaces = syncedPlaces.map((selectedPlace) => (
+        samePlace(selectedPlace, place)
+          ? { ...selectedPlace, syncFailed: true, syncError: syncErrorText(error) }
+          : selectedPlace
+      ));
+    }
+  }
+
+  return syncedPlaces;
 }
 
 async function loadOutingsFromApi() {
   const apiOutings = await auth.getOutings();
-  if (apiOutings.length) {
-    outings = apiOutings.map(normalizeApiOuting);
-  }
+  outings = apiOutings.filter(isOwnedOuting).map(normalizeApiOuting);
 }
 
 function outingCard(outing) {
@@ -391,9 +430,24 @@ function renderCollections() {
     return filterMatch && matchesSearch(place, query);
   });
 
+  const emptyState = places.length
+    ? {
+      title: "No saved places match",
+      body: "Try a different search or filter to find another saved spot.",
+      href: "Full_Collections_Page.html",
+      action: "Browse collections"
+    }
+    : {
+      title: "No saved places yet",
+      body: "Save places from Full Collections and they will appear here for quick planning.",
+      href: "Full_Collections_Page.html",
+      action: "Find places to save"
+    };
+
   collectionGrid.innerHTML = filteredPlaces.length
     ? filteredPlaces.map(placeTile).join("")
-    : `<p class="drop-hint">No collection matches.</p>`;
+    : emptyBoardState(emptyState);
+  collectionGrid.classList.toggle("has-empty-state", filteredPlaces.length === 0);
   skeletons?.markLoaded(collectionGrid);
   window.cacheDisplayedPlaces?.(filteredPlaces);
 }
@@ -405,10 +459,35 @@ function renderOutings() {
     return filterMatch && matchesSearch(outing, query);
   });
 
+  const emptyState = outings.length
+    ? {
+      title: "No outings match",
+      body: "Try a broader search or switch the outing filter.",
+      href: "Outings_Creations_Page.html",
+      action: "Create new outing"
+    }
+    : {
+      title: "No recent outings yet",
+      body: "Create your first outing and it will show up here for quick access.",
+      href: "Outings_Creations_Page.html",
+      action: "Create an outing"
+    };
+
   outingGrid.innerHTML = filteredOutings.length
     ? filteredOutings.slice(0, 3).map(outingCard).join("")
-    : `<p class="drop-hint">No outing matches.</p>`;
+    : emptyBoardState(emptyState);
+  outingGrid.classList.toggle("has-empty-state", filteredOutings.length === 0);
   skeletons?.markLoaded(outingGrid);
+}
+
+function emptyBoardState({ title, body, href, action }) {
+  return `
+    <div class="board-empty-state">
+      <h4>${escapeHtml(title)}</h4>
+      <p>${escapeHtml(body)}</p>
+      <a href="${escapeHtml(href)}">${escapeHtml(action)}</a>
+    </div>
+  `;
 }
 
 function renderPlaybook() {
@@ -422,18 +501,29 @@ function renderPlaybook() {
 }
 
 async function addPlaceToPlaybook(placeId) {
-  const place = places.find((item) => item.id === placeId);
-  if (!place) return;
-  if (playbookPlaces.some((selectedPlace) => selectedPlace.id === place.id)) return;
+  const place = findPlaceByKey(placeId);
+  if (!place) {
+    console.warn("Could not find dropped place", placeId);
+    return;
+  }
+  if (playbookPlaces.some((selectedPlace) => samePlace(selectedPlace, place))) return;
+
+  updatePlaybookPlaces([...playbookPlaces, place]);
 
   try {
     const playbookPlace = await auth.addPlaceToDefaultPlaybook(place);
-    updatePlaybookPlaces([
-      ...playbookPlaces,
-      { ...place, supabasePlaceId: playbookPlace.place_id }
-    ]);
+    updatePlaybookPlaces(playbookPlaces.map((selectedPlace) => (
+      samePlace(selectedPlace, place)
+        ? { ...selectedPlace, supabasePlaceId: playbookPlace.place_id, syncFailed: false, syncError: "" }
+        : selectedPlace
+    )));
   } catch (error) {
     console.error(error);
+    updatePlaybookPlaces(playbookPlaces.map((selectedPlace) => (
+      samePlace(selectedPlace, place)
+        ? { ...selectedPlace, syncFailed: true, syncError: syncErrorText(error) }
+        : selectedPlace
+    )));
   }
 }
 
@@ -517,44 +607,111 @@ outingFilterMenu.addEventListener("click", (event) => {
   closeMenus();
 });
 
-collectionGrid.addEventListener("dragstart", (event) => {
+collectionGrid.addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".remove-saved-spot")) return;
+
   const tile = event.target.closest(".spot-tile");
   if (!tile) return;
 
-  event.dataTransfer.setData("text/plain", tile.dataset.placeId);
-  event.dataTransfer.effectAllowed = "copy";
+  draggedPlaceId = tile.dataset.placeId || "";
 });
 
-playbookList.addEventListener("dragover", (event) => {
+collectionGrid.addEventListener("dragstart", (event) => {
+  const tile = event.target.closest(".spot-tile");
+  if (!tile) return;
+  if (event.target.closest(".remove-saved-spot")) {
+    event.preventDefault();
+    return;
+  }
+
+  draggedPlaceId = tile.dataset.placeId || "";
+  event.dataTransfer.setData("text/plain", draggedPlaceId);
+  event.dataTransfer.setData("application/x-chicago-place-id", draggedPlaceId);
+  event.dataTransfer.effectAllowed = "copy";
+  tile.classList.add("is-dragging");
+});
+
+collectionGrid.addEventListener("dragend", (event) => {
+  const tile = event.target.closest(".spot-tile");
+  if (tile) tile.classList.remove("is-dragging");
+  draggedPlaceId = "";
+});
+
+collectionGrid.addEventListener("click", async (event) => {
+  const removeButton = event.target.closest(".remove-saved-spot[data-saved-spot-id]");
+  if (!removeButton) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const savedSpotId = removeButton.dataset.savedSpotId;
+  if (!savedSpotId) return;
+
+  removeButton.disabled = true;
+  try {
+    await auth.deleteSavedSpot(savedSpotId);
+    places = places.filter((place) => place.savedSpotId !== savedSpotId);
+    renderCollections();
+  } catch (error) {
+    console.error(error);
+    removeButton.disabled = false;
+  }
+});
+
+function placeIdFromDrop(event) {
+  return (
+    event.dataTransfer.getData("application/x-chicago-place-id") ||
+    event.dataTransfer.getData("text/plain") ||
+    draggedPlaceId
+  );
+}
+
+function markPlaybookDragOver(event) {
   event.preventDefault();
   playbookList.classList.add("drag-over");
-});
+  addBlankStopBtn.classList.add("drag-over");
+  event.dataTransfer.dropEffect = "copy";
+}
 
-playbookList.addEventListener("dragleave", () => {
+function clearPlaybookDragOver() {
   playbookList.classList.remove("drag-over");
-});
+  addBlankStopBtn.classList.remove("drag-over");
+}
 
-playbookList.addEventListener("drop", async (event) => {
+async function handlePlaybookDrop(event) {
   event.preventDefault();
-  playbookList.classList.remove("drag-over");
+  event.stopPropagation();
+  clearPlaybookDragOver();
 
-  await addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
+  const placeId = placeIdFromDrop(event);
+  draggedPlaceId = "";
+  await addPlaceToPlaybook(placeId);
+}
+
+playbookPanel.addEventListener("dragover", markPlaybookDragOver, true);
+
+playbookPanel.addEventListener("dragleave", (event) => {
+  if (!playbookPanel.contains(event.relatedTarget)) clearPlaybookDragOver();
 });
+
+playbookPanel.addEventListener("drop", handlePlaybookDrop, true);
+
+playbookList.addEventListener("dragover", markPlaybookDragOver);
+
+playbookList.addEventListener("dragleave", clearPlaybookDragOver);
+
+playbookList.addEventListener("drop", handlePlaybookDrop);
 
 addBlankStopBtn.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  addBlankStopBtn.classList.add("drag-over");
+  markPlaybookDragOver(event);
 });
 
 addBlankStopBtn.addEventListener("dragleave", () => {
-  addBlankStopBtn.classList.remove("drag-over");
+  clearPlaybookDragOver();
 });
 
 addBlankStopBtn.addEventListener("drop", async (event) => {
-  event.preventDefault();
-  addBlankStopBtn.classList.remove("drag-over");
-
-  await addPlaceToPlaybook(event.dataTransfer.getData("text/plain"));
+  await handlePlaybookDrop(event);
 });
 
 playbookList.addEventListener("click", async (event) => {
@@ -589,7 +746,7 @@ async function initializePlannerPage() {
   if (!await auth.requireAuth()) return;
 
   if (!skeletons) {
-    await loadPlacesFromApi().catch(console.error);
+    await loadSavedPlacesFromApi().catch(console.error);
     await Promise.all([
       loadPlaybookPlacesFromApi().catch(console.error),
       loadOutingsFromApi().catch(console.error)
@@ -603,7 +760,7 @@ async function initializePlannerPage() {
   skeletons.showSpotTiles(collectionGrid, 6);
   skeletons.showOutingCards(outingGrid, 3);
   skeletons.showPlaybookCards(playbookList, 2);
-  await loadPlacesFromApi().catch(console.error);
+  await loadSavedPlacesFromApi().catch(console.error);
   await Promise.all([
     loadPlaybookPlacesFromApi().catch(console.error),
     loadOutingsFromApi().catch(console.error)

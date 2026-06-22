@@ -2,9 +2,11 @@ const seedPlaces = require("../data/chicagoPlacesSeed.json");
 const { googlePlacesApiKey, googlePlacesReferer, searchChicagoPlaces } = require("../services/googlePlacesService");
 const { PlaceCacheError, getOrCreatePlace } = require("../services/placeCacheService");
 
+const HOME_PLACE_LIMIT = 20;
+
 async function getPlaces(req, res, next) {
   try {
-    const places = await searchChicagoPlaces({}, { limit: 18 });
+    const places = await searchChicagoPlaces({}, { limit: HOME_PLACE_LIMIT });
     res.json({ places, source: "google-places" });
   } catch (error) {
     next(error);
@@ -15,7 +17,7 @@ async function getFilterOptions(req, res, next) {
   const unique = (values) => [...new Set(values.flat().filter(Boolean))].sort();
 
   try {
-    const places = await searchChicagoPlaces({}, { limit: 18 });
+    const places = await searchChicagoPlaces({}, { limit: HOME_PLACE_LIMIT });
     res.json({
       neighborhoods: unique(places.map((place) => place.neighborhood)),
       categories: unique(places.map((place) => place.category)),

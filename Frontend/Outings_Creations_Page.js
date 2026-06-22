@@ -329,13 +329,13 @@ function currentFormattedDate() {
 function loadPlaybookPlaces() {
   try {
     const savedIds = JSON.parse(localStorage.getItem(playbookStorageKey) || "null");
-    if (!Array.isArray(savedIds)) return [allPlaces[2], allPlaces[5]];
+    if (!Array.isArray(savedIds)) return [];
 
     return savedIds
       .map((placeId) => allPlaces.find((place) => place.id === placeId))
       .filter(Boolean);
   } catch (error) {
-    return [allPlaces[2], allPlaces[5]];
+    return [];
   }
 }
 

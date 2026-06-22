@@ -411,6 +411,12 @@ textarea {
   border-radius: 3px;
 }
 
+.place-photo-frame {
+  width: 100%;
+  position: relative;
+  margin-bottom: 9px;
+}
+
 .place-card-image {
   width: 100%;
   aspect-ratio: 16 / 8.5;
@@ -418,7 +424,55 @@ textarea {
   background: #dbeafe;
   border: 0;
   border-radius: 7px;
-  margin-bottom: 9px;
+  display: block;
+}
+
+.place-card .photo-nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.place-card .photo-nav-button:hover,
+.place-card .photo-nav-button:focus-visible {
+  background: rgba(15, 23, 42, 0.9);
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+.place-card .photo-nav-prev {
+  left: 8px;
+}
+
+.place-card .photo-nav-next {
+  right: 8px;
+}
+
+.place-card .photo-count {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  padding: 0 8px;
+  font-size: 9px;
+  font-weight: 800;
 }
 
 .place-card-body {

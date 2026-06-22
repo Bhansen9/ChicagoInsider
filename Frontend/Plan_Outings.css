@@ -371,6 +371,57 @@ input {
   padding-bottom: 4px;
 }
 
+.collection-grid.has-empty-state {
+  min-height: 148px;
+  grid-auto-flow: row;
+  grid-auto-columns: unset;
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+
+.board-empty-state {
+  min-width: min(360px, 100%);
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  gap: 7px;
+  padding: 22px 26px;
+  border: 1px dashed #b8c5d8;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #334155;
+  text-align: center;
+}
+
+.board-empty-state h4 {
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.board-empty-state p {
+  max-width: 290px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.board-empty-state a {
+  width: fit-content;
+  justify-self: center;
+  margin-top: 4px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.board-empty-state a:hover,
+.board-empty-state a:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
 .spot-tile,
 .playbook-card,
 .outing-card {
@@ -382,10 +433,15 @@ input {
   min-height: 166px;
   padding: 10px;
   cursor: grab;
+  position: relative;
 }
 
 .spot-tile:active {
   cursor: grabbing;
+}
+
+.spot-tile.is-dragging {
+  opacity: 0.55;
 }
 
 .pill {
@@ -397,6 +453,33 @@ input {
   font-size: 9px;
   font-weight: 700;
   margin-bottom: 6px;
+}
+
+.remove-saved-spot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 18px;
+  padding: 0 6px;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove-saved-spot:hover,
+.remove-saved-spot:focus-visible {
+  background: #fee2e2;
+  outline: none;
+}
+
+.remove-saved-spot:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .spot-tile h4,
@@ -454,6 +537,18 @@ input {
 
 .playbook-card p {
   font-size: 8px;
+}
+
+.sync-status {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 8px;
+  font-weight: 800;
 }
 
 .remove-stop {
@@ -522,6 +617,18 @@ input {
 
 .outing-grid {
   display: contents;
+}
+
+.outing-grid.has-empty-state {
+  min-height: 296px;
+  display: grid;
+  grid-column: span 3;
+  align-items: center;
+}
+
+.outing-grid.has-empty-state .board-empty-state {
+  grid-column: auto;
+  min-height: 146px;
 }
 
 .outing-card {
@@ -662,5 +769,9 @@ input {
   .outing-grid,
   .recent-board {
     grid-template-columns: 1fr;
+  }
+
+  .outing-grid.has-empty-state {
+    grid-column: auto;
   }
 }

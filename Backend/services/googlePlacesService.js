@@ -214,10 +214,18 @@ function photoUrl(photoName, width = 900, height = 560) {
   return `/api/places/photo?${params.toString()}`;
 }
 
+function photoNamesForPlace(place) {
+  return (place.photos || [])
+    .map((photo) => photo.name)
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
 function mapGooglePlace(place, categoryHint = "") {
   const name = place.displayName?.text || "Chicago spot";
   const category = categoryHint || inferCategory(place);
-  const photoName = place.photos?.[0]?.name;
+  const photoNames = photoNamesForPlace(place);
+  const photoName = photoNames[0];
   const neighborhood = inferNeighborhood(place);
   const rating = Number(place.rating) || 0;
   const userRatingCount = Number(place.userRatingCount) || 0;
@@ -241,6 +249,8 @@ function mapGooglePlace(place, categoryHint = "") {
     imageUrl: photoUrl(photoName),
     image: photoUrl(photoName, 640, 420),
     photoName,
+    photoNames,
+    photoUrls: photoNames.map((name) => photoUrl(name)),
     rating,
     userRatingCount,
     reviewUrl: place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " Chicago")}`,
@@ -385,7 +395,7 @@ async function getGooglePlaceDetails(googlePlaceId) {
   return response.json();
 }
 
-async function getDefaultGooglePlaces(limit = 18) {
+async function getDefaultGooglePlaces(limit = 20) {
   const searches = [
     { category: "Food", prompt: "popular restaurants" },
     { category: "Bar", prompt: "popular bars rooftops cocktails" },

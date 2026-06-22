@@ -255,20 +255,12 @@
   }
 
   async function getOrCreateDefaultPlaybook() {
-    const data = await apiFetch("/api/playbooks");
-    const existing = (data.playbooks || []).find((playbook) => playbook.title === "My Playbook");
-    if (existing) return existing;
-
-    const created = await apiFetch("/api/playbooks", {
-      method: "POST",
-      body: JSON.stringify({ title: "My Playbook", visibility: "private" })
-    });
-    return created.playbook;
+    const data = await apiFetch("/api/playbooks/default");
+    return data.playbook;
   }
 
   async function addPlaceToDefaultPlaybook(place) {
-    const playbook = await getOrCreateDefaultPlaybook();
-    const data = await apiFetch(`/api/playbooks/${encodeURIComponent(playbook.id)}/places`, {
+    const data = await apiFetch("/api/playbooks/default/places", {
       method: "POST",
       body: JSON.stringify(placePayload(place))
     });
@@ -276,9 +268,8 @@
   }
 
   async function deletePlaceFromDefaultPlaybook(supabasePlaceId) {
-    const playbook = await getOrCreateDefaultPlaybook();
     return apiFetch(
-      `/api/playbooks/${encodeURIComponent(playbook.id)}/places/${encodeURIComponent(supabasePlaceId)}`,
+      `/api/playbooks/default/places/${encodeURIComponent(supabasePlaceId)}`,
       { method: "DELETE" }
     );
   }

@@ -112,7 +112,7 @@ function recommendPlaces(filters = {}) {
     .map((place) => scorePlace(place, filters))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 
-  return scored.slice(0, 6);
+  return scored.slice(0, 20);
 }
 
 module.exports = {

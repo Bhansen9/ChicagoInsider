@@ -6,7 +6,6 @@ const collectionSortBtn = document.querySelector("#collectionSortBtn");
 const collectionSortMenu = document.querySelector("#collectionSortMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
 const auth = window.ChicagoInsiderAuth;
-const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
@@ -14,196 +13,9 @@ function resolveAssetUrl(url) {
   return `${API_BASE_URL}${url}`;
 }
 
-let places = [
-  {
-    id: "millennium",
-    name: "Millennium Park",
-    category: "Landmark",
-    type: "free",
-    price: "Free",
-    neighborhood: "Downtown",
-    rating: 4.7,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Millennium%20park%2Cchicago.JPG?width=900",
-    description: "A classic downtown landmark known for Cloud Gate, public art, open space, and skyline views.",
-    note: "Touristy, Scenic, Photo Friendly"
-  },
-  {
-    id: "riverwalk",
-    name: "Chicago Riverwalk",
-    category: "Activity",
-    type: "activity",
-    price: "Free",
-    neighborhood: "River North",
-    rating: 4.8,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Riverwalk%20%2851556708640%29.jpg?width=900",
-    description: "A scenic walkway along the Chicago River with restaurants, views, public seating, and boat tour access.",
-    note: "Scenic, Walkable, Romantic"
-  },
-  {
-    id: "art-institute",
-    name: "The Art Institute of Chicago",
-    category: "Museum",
-    type: "activity",
-    price: "$$",
-    neighborhood: "Downtown",
-    rating: 4.8,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Art%20Institute%20of%20Chicago%20Lion%20%288519756704%29.jpg?width=900",
-    description: "One of Chicago's best-known museums, great for art, history, architecture, and quiet afternoon plans.",
-    note: "Arts, Classic, Quiet"
-  },
-  {
-    id: "au-cheval",
-    name: "Au Cheval",
-    category: "Food",
-    type: "food",
-    price: "$$$",
-    neighborhood: "West Loop",
-    rating: 4.4,
-    image: "https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg",
-    description: "A popular West Loop restaurant known for its burger, late-night energy, and polished diner feel.",
-    note: "Trendy, Busy, Foodie"
-  },
-  {
-    id: "small-cheval",
-    name: "Small Cheval",
-    category: "Food",
-    type: "food",
-    price: "$$",
-    neighborhood: "Wicker Park",
-    rating: 4.3,
-    image: "https://images.squarespace-cdn.com/content/v1/664b756924d01f2bafa19992/bfae2152-f1c0-4280-80f5-11ea7e0860db/new-shots-outdoor-2.jpeg",
-    description: "A casual burger spot with a simple menu and a relaxed neighborhood feel.",
-    note: "Casual, Quick, Tasty"
-  },
-  {
-    id: "londonhouse",
-    name: "LondonHouse Rooftop",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "River North",
-    rating: 4.2,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/London%20House%20Rooftop%2C%20Chicago.jpg?width=900",
-    description: "An upscale rooftop bar with strong downtown and river views, ideal for scenic evenings.",
-    note: "Rooftop, Luxury, Romantic"
-  },
-  {
-    id: "lincoln-park-zoo",
-    name: "Lincoln Park Zoo",
-    category: "Activity",
-    type: "free",
-    price: "Free",
-    neighborhood: "Lincoln Park",
-    rating: 4.6,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lincoln%20Park%20Zoo%2C%20Chicago%2C%20United%20States%20%28Unsplash%20LfGqCrLmhp0%29.jpg?width=900",
-    description: "A free zoo in Lincoln Park, great for walking, animals, lake-adjacent views, and low-cost city exploring.",
-    note: "Family Friendly, Outdoors, Casual"
-  },
-  {
-    id: "violet-hour",
-    name: "The Violet Hour",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "Wicker Park",
-    rating: 4.2,
-    image: "https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg",
-    description: "A stylish cocktail bar with a darker, intimate atmosphere and a strong date-night rhythm.",
-    note: "Speakeasy, Moody, Romantic"
-  },
-  {
-    id: "lou-malnatis",
-    name: "Lou Malnati's",
-    category: "Food",
-    type: "food",
-    price: "$$",
-    neighborhood: "River North",
-    rating: 4.1,
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lou%20Malnati%27s%20%287705519362%29.jpg?width=900",
-    description: "A well-known Chicago deep dish pizza spot that works well for visitors and groups.",
-    note: "Classic, Touristy, Casual"
-  },
-  {
-    id: "cindy",
-    name: "Cindy's Rooftop",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "Downtown",
-    rating: 4.1,
-    image: "https://cdn.prod.website-files.com/692deee1433d0acae210e525/6930b2963bc306834dd9c99c_Daniel%20Kelleghan%20Photography-2024-03-25%20Cindys57247-HDR.avif",
-    description: "A rooftop restaurant and bar with views over Millennium Park and Lake Michigan.",
-    note: "Rooftop, Scenic, Trendy"
-  }
-];
-
+let places = [];
 let activeCollectionFilter = "all";
 let activeSort = "featured";
-let savedPlaceIds = loadSavedPlaceIds();
-let savedSpotByKey = new Map();
-
-function loadSavedPlaceIds() {
-  try {
-    const savedIds = JSON.parse(localStorage.getItem(playbookStorageKey) || "[]");
-    return Array.isArray(savedIds) ? savedIds : [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function saveSavedPlaceIds() {
-  try {
-    localStorage.setItem(playbookStorageKey, JSON.stringify(savedPlaceIds));
-  } catch (error) {
-    // localStorage can be unavailable in restricted browser modes.
-  }
-}
-
-function keysForStoredPlace(place = {}) {
-  return [
-    place.id,
-    place.google_place_id,
-    place.googlePlaceId,
-    place.google_place_id?.startsWith("local:") ? place.google_place_id.slice(6) : "",
-    place.name
-  ].filter(Boolean).map(String);
-}
-
-function keysForDisplayPlace(place = {}) {
-  return [
-    place.id,
-    place.googlePlaceId,
-    place.google_place_id,
-    place.place_id,
-    `local:${place.id}`,
-    place.name
-  ].filter(Boolean).map(String);
-}
-
-function rememberSavedSpot(savedSpot) {
-  keysForStoredPlace(savedSpot.place).forEach((key) => {
-    savedSpotByKey.set(key, savedSpot);
-    if (!savedPlaceIds.includes(key)) savedPlaceIds.push(key);
-  });
-}
-
-async function loadSavedSpotsFromApi() {
-  const savedSpots = await auth.getSavedSpots();
-  savedPlaceIds = [];
-  savedSpotByKey = new Map();
-  savedSpots.forEach(rememberSavedSpot);
-  saveSavedPlaceIds();
-}
-
-function savedSpotForPlace(place) {
-  return keysForDisplayPlace(place)
-    .map((key) => savedSpotByKey.get(key))
-    .find(Boolean);
-}
-
-function isPlaceSaved(place) {
-  return keysForDisplayPlace(place).some((key) => savedPlaceIds.includes(key));
-}
 
 function escapeHtml(value) {
   return String(value || "")
@@ -212,6 +24,123 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function displayPlaceId(place = {}) {
+  const rawId = String(place.google_place_id || place.googlePlaceId || place.place_id || place.id || "");
+  return rawId.startsWith("local:") ? rawId.slice(6) : rawId;
+}
+
+function priceFromStoredPlace(place = {}, metadata = {}) {
+  const priceByLevel = {
+    0: "Free",
+    1: "$",
+    2: "$$",
+    3: "$$$",
+    4: "$$$$"
+  };
+
+  return metadata.price || place.price || priceByLevel[place.price_level] || "$$";
+}
+
+function typeFromStoredPlace(place = {}, metadata = {}) {
+  const category = String(place.category || "").toLowerCase();
+  const primaryType = String(place.primary_type || "").toLowerCase();
+  const price = priceFromStoredPlace(place, metadata);
+  const filterTypes = new Set(["activity", "bar", "food", "free"]);
+
+  if (metadata.type) return metadata.type;
+  if (filterTypes.has(primaryType)) return primaryType;
+  if (price === "Free") return "free";
+  if (category.includes("bar") || primaryType.includes("bar")) return "bar";
+  if (category.includes("food") || category.includes("restaurant") || primaryType.includes("restaurant")) return "food";
+  return category || primaryType || "activity";
+}
+
+function photoUrlFromName(photoName) {
+  if (!photoName) return "";
+
+  const params = new URLSearchParams({
+    name: photoName,
+    maxWidthPx: "900",
+    maxHeightPx: "560"
+  });
+
+  return `/api/places/photo?${params.toString()}`;
+}
+
+function imageFromStoredPlace(place = {}, metadata = {}) {
+  const rawPayload = place.raw_google_payload || {};
+  const photoReferences = Array.isArray(place.photo_references) ? place.photo_references : [];
+  const photoName = (
+    place.photoName ||
+    rawPayload.photoName ||
+    rawPayload.photos?.[0]?.name ||
+    photoReferences[0]
+  );
+
+  return resolveAssetUrl(
+    metadata.image ||
+    place.image ||
+    place.imageUrl ||
+    rawPayload.image ||
+    rawPayload.imageUrl ||
+    photoUrlFromName(photoName) ||
+    "assets/pixel-chicago-hero.png"
+  );
+}
+
+function ratingFromStoredPlace(place = {}, metadata = {}) {
+  const rawPayload = place.raw_google_payload || {};
+  const rating = Number(metadata.rating || place.rating || rawPayload.rating || 0);
+  return Number.isFinite(rating) ? rating : 0;
+}
+
+function normalizeSavedSpot(savedSpot = {}) {
+  if (!savedSpot.place) return null;
+
+  const place = savedSpot.place;
+  const metadata = place.metadata || {};
+  const price = priceFromStoredPlace(place, metadata);
+
+  return {
+    id: displayPlaceId(place) || savedSpot.id,
+    savedSpotId: savedSpot.id,
+    placeId: place.id,
+    googlePlaceId: place.google_place_id || place.googlePlaceId || place.place_id || "",
+    supabasePlaceId: place.id,
+    name: place.name || "Chicago place",
+    category: place.category || "Activity",
+    type: typeFromStoredPlace(place, metadata),
+    price,
+    neighborhood: metadata.neighborhood || "Chicago",
+    rating: ratingFromStoredPlace(place, metadata),
+    image: imageFromStoredPlace(place, metadata),
+    description: place.formatted_address || place.address || "Saved Chicago place.",
+    note: savedSpot.notes || metadata.note || "Saved by you",
+    createdAt: savedSpot.created_at || ""
+  };
+}
+
+function usesPlaceholderImage(place = {}) {
+  return !place.image || String(place.image).includes("pixel-chicago-hero");
+}
+
+async function loadSavedPlacesFromApi() {
+  const savedSpots = await auth.getSavedSpots();
+  places = savedSpots.map(normalizeSavedSpot).filter(Boolean);
+
+  if (places.some(usesPlaceholderImage)) {
+    const cachedPlaces = await window.ChicagoInsiderPlaceCache?.cacheDisplayedPlaces(places).catch((error) => {
+      console.error(error);
+      return [];
+    });
+
+    if (cachedPlaces?.length) {
+      const refreshedSavedSpots = await auth.getSavedSpots();
+      places = refreshedSavedSpots.map(normalizeSavedSpot).filter(Boolean);
+    }
+  }
 }
 
 function matchesSearch(place, query) {
@@ -229,7 +158,12 @@ function matchesSearch(place, query) {
 }
 
 function priceRank(price) {
-  return { Free: 0, "$": 1, "$$": 2, "$$$": 3 }[price] ?? 9;
+  return { Free: 0, "$": 1, "$$": 2, "$$$": 3, "$$$$": 4 }[price] ?? 9;
+}
+
+function dateRank(place) {
+  const time = new Date(place.createdAt || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
 }
 
 function sortedPlaces(nextPlaces) {
@@ -237,14 +171,16 @@ function sortedPlaces(nextPlaces) {
     if (activeSort === "name") return a.name.localeCompare(b.name);
     if (activeSort === "neighborhood") return a.neighborhood.localeCompare(b.neighborhood) || a.name.localeCompare(b.name);
     if (activeSort === "budget") return priceRank(a.price) - priceRank(b.price) || a.name.localeCompare(b.name);
-    return places.findIndex((place) => place.id === a.id) - places.findIndex((place) => place.id === b.id);
+    return dateRank(b) - dateRank(a) || a.name.localeCompare(b.name);
   });
 }
 
 function cardForPlace(place) {
-  const isSaved = isPlaceSaved(place);
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
-  const note = place.note || (place.vibes || []).join(", ") || "Google Places result";
+  const rating = Number(place.rating || 0);
+  const ratingHtml = rating
+    ? `<span class="rating"><span class="stars">*****</span> ${rating.toFixed(1)}</span>`
+    : "";
 
   return `
     <article class="place-card">
@@ -252,38 +188,24 @@ function cardForPlace(place) {
       <div class="place-card-body">
         <div class="place-card-topline">
           <span class="pill">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
-          <span class="rating"><span class="stars">*****</span> ${Number(place.rating || 0).toFixed(1)}</span>
+          ${ratingHtml}
         </div>
         <h2>${escapeHtml(place.name)}</h2>
         <p class="neighborhood">${escapeHtml(place.neighborhood)}</p>
         <p class="description">${escapeHtml(place.description)}</p>
-        <p class="source-note">From Google Places in Chicago.</p>
-        <p class="vibes">${escapeHtml(note)}</p>
-        <button class="save-spot ${isSaved ? "is-saved" : ""}" type="button" data-place-id="${escapeHtml(place.id)}">
-          ${isSaved ? "Saved" : "Save Spot"}
+        <p class="source-note">Saved to your Full Collections.</p>
+        <p class="vibes">${escapeHtml(place.note)}</p>
+        <button class="save-spot remove-saved-spot" type="button" data-saved-spot-id="${escapeHtml(place.savedSpotId)}">
+          Remove
         </button>
       </div>
     </article>
   `;
 }
 
-function normalizeApiPlace(place) {
-  return {
-    ...place,
-    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
-    type: place.type || String(place.category || "activity").toLowerCase(),
-    note: place.note || (place.vibes || []).join(", ")
-  };
-}
-
-async function loadPlacesFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/places`);
-  if (!response.ok) throw new Error("Could not load Google Places");
-
-  const data = await response.json();
-  if (!Array.isArray(data.places) || !data.places.length) return;
-
-  places = data.places.map(normalizeApiPlace);
+function emptyCollectionsMessage() {
+  if (places.length) return "No saved places match that search.";
+  return "No saved places yet. Save spots from Home or Trending and they will appear here.";
 }
 
 function renderCollections() {
@@ -296,7 +218,7 @@ function renderCollections() {
 
   collectionGrid.innerHTML = nextPlaces.length
     ? nextPlaces.map(cardForPlace).join("")
-    : `<div class="empty-state">No collections match that search.</div>`;
+    : `<div class="empty-state">${escapeHtml(emptyCollectionsMessage())}</div>`;
   skeletons?.markLoaded(collectionGrid);
   window.cacheDisplayedPlaces?.(nextPlaces);
 }
@@ -348,31 +270,22 @@ collectionSortMenu.addEventListener("click", (event) => {
 });
 
 collectionGrid.addEventListener("click", async (event) => {
-  const saveButton = event.target.closest("button[data-place-id]");
-  if (!saveButton) return;
+  const removeButton = event.target.closest("button[data-saved-spot-id]");
+  if (!removeButton) return;
 
-  const placeId = saveButton.dataset.placeId;
-  const place = places.find((item) => String(item.id) === String(placeId));
-  if (!place) return;
+  const savedSpotId = removeButton.dataset.savedSpotId;
+  if (!savedSpotId) return;
 
-  saveButton.disabled = true;
+  removeButton.disabled = true;
   try {
-    const savedSpot = savedSpotForPlace(place);
-    if (savedSpot) {
-      await auth.deleteSavedSpot(savedSpot.id);
-    } else {
-      await auth.saveSpot(place);
-    }
-
-    await loadSavedSpotsFromApi();
+    await auth.deleteSavedSpot(savedSpotId);
+    places = places.filter((place) => place.savedSpotId !== savedSpotId);
+    renderCollections();
   } catch (error) {
     console.error(error);
     if (error.status === 401) return;
-  } finally {
-    saveButton.disabled = false;
+    removeButton.disabled = false;
   }
-
-  renderCollections();
 });
 
 document.addEventListener("click", closeMenus);
@@ -384,19 +297,13 @@ async function initializeCollectionsPage() {
   if (!await auth.requireAuth()) return;
 
   if (!skeletons) {
-    await Promise.all([
-      loadPlacesFromApi().catch(console.error),
-      loadSavedSpotsFromApi().catch(console.error)
-    ]);
+    await loadSavedPlacesFromApi().catch(console.error);
     renderCollections();
     return;
   }
 
   skeletons.showCollectionCards(collectionGrid, 8);
-  await Promise.all([
-    loadPlacesFromApi().catch(console.error),
-    loadSavedSpotsFromApi().catch(console.error)
-  ]);
+  await loadSavedPlacesFromApi().catch(console.error);
   renderCollections();
 }
 

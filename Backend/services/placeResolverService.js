@@ -47,6 +47,18 @@ function placeNameFrom(input = {}) {
   return String(input.name || input.title || "Chicago place").trim().slice(0, 160);
 }
 
+function hasDisplayMetadata(input = {}) {
+  return Boolean(
+    input.image ||
+    input.imageUrl ||
+    input.photoName ||
+    input.neighborhood ||
+    input.price ||
+    input.note ||
+    input.description
+  );
+}
+
 function mapInputToPlaceRow(input = {}) {
   const { latitude, longitude } = coordinatesFrom(input);
   const photoReferences = input.photoName ? [input.photoName] : [];
@@ -113,7 +125,17 @@ async function ensurePlace(input = {}) {
   if (googlePlaceId) {
     try {
       const result = await getOrCreatePlace(googlePlaceId);
-      if (result?.place) return result.place;
+      if (result?.place) {
+        if (hasDisplayMetadata(input)) {
+          return upsertPlaceFromInput({
+            ...input,
+            placeId: result.place.id,
+            id: result.place.id,
+            googlePlaceId
+          });
+        }
+        return result.place;
+      }
     } catch (error) {
       if (!["MISSING_GOOGLE_PLACES_API_KEY", "GOOGLE_PLACES_API_FAILED"].includes(error.code)) {
         throw error;

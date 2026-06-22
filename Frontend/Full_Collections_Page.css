@@ -340,6 +340,18 @@ input {
   color: #166534;
 }
 
+.remove-saved-spot {
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.remove-saved-spot:hover,
+.remove-saved-spot:focus-visible {
+  background: #fecaca;
+  outline: none;
+}
+
 .empty-state {
   min-height: 300px;
   display: grid;
@@ -347,6 +359,7 @@ input {
   color: var(--muted);
   font-size: 14px;
   font-weight: 800;
+  line-height: 1.45;
   text-align: center;
 }
 

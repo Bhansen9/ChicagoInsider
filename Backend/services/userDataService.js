@@ -176,21 +176,90 @@ async function getPlaybook(playbookId, supabase) {
   return data;
 }
 
+async function findDefaultPlaybook(userId, supabase) {
+  const ownedColumns = ["user_id", "owner_id"];
+
+  for (const column of ownedColumns) {
+    const { data, error } = await supabase
+      .from("playbooks")
+      .select("*, playbook_places(*, place:places(*))")
+      .eq("title", "My Playbook")
+      .eq(column, userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new ApiError(error.message, 500, "DEFAULT_PLAYBOOK_LOAD_FAILED");
+    if (data) return data;
+  }
+
+  return null;
+}
+
+async function getOrCreateDefaultPlaybook(userId, supabase) {
+  const existing = await findDefaultPlaybook(userId, supabase);
+  if (existing) return existing;
+
+  return createPlaybook(userId, { title: "My Playbook", visibility: "private" }, supabase);
+}
+
 async function addPlaceToPlaybook(userId, playbookId, body, supabase) {
   const place = await ensurePlace(body.place || body);
+  const row = {
+    playbook_id: playbookId,
+    place_id: place.id,
+    position: Number.isInteger(Number(body.position)) ? Number(body.position) : 0,
+    notes: cleanNullableText(body.notes, 500)
+  };
+
+  const { data: existing, error: existingError } = await supabase
+    .from("playbook_places")
+    .select("id")
+    .eq("playbook_id", playbookId)
+    .eq("place_id", place.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new ApiError(existingError.message, 400, "PLAYBOOK_PLACE_LOOKUP_FAILED");
+  }
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("playbook_places")
+      .update({
+        position: row.position,
+        notes: row.notes
+      })
+      .eq("id", existing.id)
+      .select("*, place:places(*)")
+      .single();
+
+    if (!error) return data;
+
+    const { data: fallback, error: fallbackError } = await supabase
+      .from("playbook_places")
+      .select("*, place:places(*)")
+      .eq("id", existing.id)
+      .single();
+
+    if (!fallbackError) return fallback;
+    throw new ApiError(error.message, 400, "PLAYBOOK_PLACE_SAVE_FAILED");
+  }
+
   const { data, error } = await supabase
     .from("playbook_places")
-    .upsert({
-      playbook_id: playbookId,
-      place_id: place.id,
-      position: Number.isInteger(Number(body.position)) ? Number(body.position) : 0,
-      notes: cleanNullableText(body.notes, 500)
-    }, { onConflict: "playbook_id,place_id" })
+    .insert(row)
     .select("*, place:places(*)")
     .single();
 
   if (error) throw new ApiError(error.message, 400, "PLAYBOOK_PLACE_SAVE_FAILED");
   return data;
+}
+
+async function addPlaceToDefaultPlaybook(userId, body, supabase) {
+  const playbook = await getOrCreateDefaultPlaybook(userId, supabase);
+  return addPlaceToPlaybook(userId, playbook.id, body, supabase);
 }
 
 async function deletePlaceFromPlaybook(userId, playbookId, placeId, supabase) {
@@ -202,6 +271,11 @@ async function deletePlaceFromPlaybook(userId, playbookId, placeId, supabase) {
 
   if (error) throw new ApiError(error.message, 400, "PLAYBOOK_PLACE_DELETE_FAILED");
   return { ok: true };
+}
+
+async function deletePlaceFromDefaultPlaybook(userId, placeId, supabase) {
+  const playbook = await getOrCreateDefaultPlaybook(userId, supabase);
+  return deletePlaceFromPlaybook(userId, playbook.id, placeId, supabase);
 }
 
 async function createOuting(userId, body, supabase) {
@@ -378,13 +452,16 @@ async function deleteOutingContributor(userId, outingId, contributorUserId, supa
 
 module.exports = {
   addOutingContributor,
+  addPlaceToDefaultPlaybook,
   addPlaceToPlaybook,
   createOuting,
   createPlaybook,
   createSavedSpot,
   deleteOutingContributor,
+  deletePlaceFromDefaultPlaybook,
   deletePlaceFromPlaybook,
   deleteSavedSpot,
+  getOrCreateDefaultPlaybook,
   listOutings,
   listPlaybooks,
   listSavedSpots,

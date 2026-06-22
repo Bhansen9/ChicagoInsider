@@ -71,6 +71,9 @@ let heroSlideIndex = 0;
 let showingHeroImageA = true;
 let heroSlideshowTimer;
 let placesById = new Map();
+let savedPlaceKeys = new Set();
+let lastRecommendations = [];
+let lastParsedFilters = {};
 
 const chicagoMapBounds = {
   north: 41.96,
@@ -134,6 +137,48 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function keysForStoredPlace(place = {}) {
+  return [
+    place.id,
+    place.google_place_id,
+    place.googlePlaceId,
+    place.place_id,
+    place.google_place_id?.startsWith("local:") ? place.google_place_id.slice(6) : "",
+    place.name?.toLowerCase()
+  ].filter(Boolean).map(String);
+}
+
+function keysForDisplayPlace(place = {}) {
+  return [
+    place.id,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    `local:${place.id}`,
+    place.name?.toLowerCase()
+  ].filter(Boolean).map(String);
+}
+
+function rememberSavedPlace(place = {}) {
+  keysForStoredPlace(place).forEach((key) => savedPlaceKeys.add(key));
+}
+
+function isPlaceSaved(place = {}) {
+  return keysForDisplayPlace(place).some((key) => savedPlaceKeys.has(key));
+}
+
+async function loadSavedSpotsForSearch() {
+  if (!auth.getSession?.()) return;
+
+  try {
+    const savedSpots = await auth.getSavedSpots();
+    savedPlaceKeys = new Set();
+    savedSpots.forEach((savedSpot) => rememberSavedPlace(savedSpot.place));
+  } catch (error) {
+    if (error.status !== 401) console.error(error);
+  }
+}
+
 function restaurantMeta(place) {
   const rating = Number(place.rating);
   if (!rating || !place.reviewUrl) return "";
@@ -169,9 +214,49 @@ function placeImageUrl(place) {
   return resolveAssetUrl(place.imageUrl || place.image);
 }
 
+function photoUrlFromName(photoName, width = 900, height = 560) {
+  if (!photoName) return "";
+
+  const params = new URLSearchParams({
+    name: photoName,
+    maxWidthPx: String(width),
+    maxHeightPx: String(height)
+  });
+
+  return `/api/places/photo?${params.toString()}`;
+}
+
+function uniquePhotoUrls(urls) {
+  const seen = new Set();
+  return urls
+    .filter(Boolean)
+    .map(resolveAssetUrl)
+    .filter((url) => {
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+}
+
+function placePhotoUrls(place) {
+  const urls = [
+    ...(Array.isArray(place.photoUrls) ? place.photoUrls : []),
+    ...(Array.isArray(place.photo_urls) ? place.photo_urls : []),
+    ...(Array.isArray(place.photoNames) ? place.photoNames.map((name) => photoUrlFromName(name)) : []),
+    ...(Array.isArray(place.photo_references) ? place.photo_references.map((name) => photoUrlFromName(name)) : []),
+    place.photoName ? photoUrlFromName(place.photoName) : "",
+    place.imageUrl,
+    place.image,
+    PLACE_IMAGE_FALLBACKS[place.name]
+  ];
+
+  const photos = uniquePhotoUrls(urls);
+  return photos.length ? photos : [resolveAssetUrl(PLACE_IMAGE_FALLBACKS["Chicago Riverwalk"])];
+}
+
 function renderLoading(message = "Finding Chicago spots...") {
   if (skeletons) {
-    skeletons.showHomePlaceCards(placeGrid, 4);
+    skeletons.showHomePlaceCards(placeGrid, 8);
     return;
   }
 
@@ -354,21 +439,37 @@ function mapInfoContent(place) {
 
 function placeCard(place) {
   const vibes = (place.vibes || []).slice(0, 3).map(titleCase).map(escapeHtml).join(", ");
-  const imageUrl = placeImageUrl(place);
+  const photos = placePhotoUrls(place);
+  const imageUrl = photos[0] || placeImageUrl(place);
+  const photoControls = photos.length > 1
+    ? `
+        <button class="photo-nav-button photo-nav-prev" type="button" data-photo-action="prev" aria-label="Previous photo for ${escapeHtml(place.name)}">
+          ‹
+        </button>
+        <button class="photo-nav-button photo-nav-next" type="button" data-photo-action="next" aria-label="Next photo for ${escapeHtml(place.name)}">
+          ›
+        </button>
+        <span class="photo-count">1 / ${photos.length}</span>
+      `
+    : "";
 
   return `
-    <article class="place-card card">
+    <article class="place-card card" data-place-id="${escapeHtml(place.id)}">
       <div class="place-card-body">
         <span class="tag">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
         <h3>${escapeHtml(place.name)}</h3>
-        <img
-          class="place-card-image"
-          src="${escapeHtml(imageUrl)}"
-          alt="${escapeHtml(place.name)}"
-          data-place-name="${escapeHtml(place.name)}"
-          loading="lazy"
-          onerror="window.usePlaceImageFallback(this)"
-        />
+        <div class="place-photo-frame">
+          <img
+            class="place-card-image"
+            src="${escapeHtml(imageUrl)}"
+            alt="${escapeHtml(place.name)} photo 1"
+            data-place-name="${escapeHtml(place.name)}"
+            data-photo-index="0"
+            loading="lazy"
+            onerror="window.usePlaceImageFallback(this)"
+          />
+          ${photoControls}
+        </div>
         ${restaurantMeta(place)}
         <p class="neighborhood">${escapeHtml(place.neighborhood)}</p>
         <p>${escapeHtml(place.description)}</p>
@@ -380,32 +481,60 @@ function placeCard(place) {
   `;
 }
 
-function renderRecommendations(recommendations, parsedFilters = {}) {
-  updateMapMarkers(recommendations);
-  placesById = new Map(recommendations.map((place) => [String(place.id), place]));
+function cyclePlacePhoto(button) {
+  const card = button.closest(".place-card[data-place-id]");
+  if (!card) return;
 
-  if (!recommendations.length) {
+  const place = placesById.get(String(card.dataset.placeId));
+  if (!place) return;
+
+  const photos = placePhotoUrls(place);
+  if (photos.length < 2) return;
+
+  const image = card.querySelector(".place-card-image");
+  const count = card.querySelector(".photo-count");
+  const currentIndex = Number(image?.dataset.photoIndex || 0);
+  const direction = button.dataset.photoAction === "prev" ? -1 : 1;
+  const nextIndex = (currentIndex + direction + photos.length) % photos.length;
+
+  image.dataset.photoIndex = String(nextIndex);
+  image.src = photos[nextIndex];
+  image.alt = `${place.name} photo ${nextIndex + 1}`;
+  if (count) count.textContent = `${nextIndex + 1} / ${photos.length}`;
+}
+
+function renderRecommendations(recommendations, parsedFilters = {}) {
+  lastRecommendations = recommendations;
+  lastParsedFilters = parsedFilters;
+  const visibleRecommendations = recommendations.filter((place) => !isPlaceSaved(place));
+
+  updateMapMarkers(visibleRecommendations);
+  placesById = new Map(visibleRecommendations.map((place) => [String(place.id), place]));
+
+  if (!visibleRecommendations.length) {
     placeGrid.innerHTML = `
       <div class="empty-state">
-        No exact matches yet. Try broadening the neighborhood, vibe, or budget.
+        ${recommendations.length ? "Those places are already saved. Try another search for more spots." : "No exact matches yet. Try broadening the neighborhood, vibe, or budget."}
       </div>
     `;
     skeletons?.markLoaded(placeGrid);
-    resultsSummary.textContent = "No matches found for that combination.";
+    resultsSummary.textContent = recommendations.length
+      ? "All matches are already saved."
+      : "No matches found for that combination.";
     return;
   }
 
-  placeGrid.innerHTML = recommendations.map(placeCard).join("");
+  placeGrid.innerHTML = visibleRecommendations.map(placeCard).join("");
   skeletons?.markLoaded(placeGrid);
-  window.cacheDisplayedPlaces?.(recommendations);
+  window.cacheDisplayedPlaces?.(visibleRecommendations);
 
   const activeFilters = Object.entries(parsedFilters)
     .filter(([, value]) => value)
     .map(([key, value]) => `${key}: ${titleCase(value)}`);
 
   resultsSummary.textContent = activeFilters.length
-    ? `Showing ${recommendations.length} matches for ${activeFilters.join(", ")}.`
-    : `Showing ${recommendations.length} curated Chicago spots.`;
+    ? `Showing ${visibleRecommendations.length} unsaved matches for ${activeFilters.join(", ")}.`
+    : `Showing ${visibleRecommendations.length} unsaved Chicago spots.`;
 }
 
 function readFormFilters() {
@@ -448,6 +577,7 @@ async function fetchPlaces() {
 
 async function runRecommendationSearch(filters = {}) {
   try {
+    await loadSavedSpotsForSearch();
     const data = await fetchRecommendations(filters);
     renderRecommendations(data.recommendations || [], data.parsedFilters || {});
     return data;
@@ -463,6 +593,7 @@ async function loadInitialPlaces() {
   hasLoadedInitialPlaces = true;
 
   try {
+    await loadSavedSpotsForSearch();
     const data = await fetchPlaces();
     const places = (data.places || []).map((place) => ({
       ...place,
@@ -571,6 +702,12 @@ heroSearchForm.addEventListener("submit", async (event) => {
 });
 
 placeGrid.addEventListener("click", async (event) => {
+  const photoButton = event.target.closest("button[data-photo-action]");
+  if (photoButton) {
+    cyclePlacePhoto(photoButton);
+    return;
+  }
+
   const saveButton = event.target.closest("button[data-save-place-id]");
   if (!saveButton) return;
 
@@ -582,8 +719,10 @@ placeGrid.addEventListener("click", async (event) => {
 
   try {
     await auth.saveSpot(place);
+    rememberSavedPlace(place);
     saveButton.textContent = "Saved";
     saveButton.classList.add("is-saved");
+    renderRecommendations(lastRecommendations, lastParsedFilters);
   } catch (error) {
     if (error.status !== 401) {
       console.error(error);

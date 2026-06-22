@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profile | ChicagoInsider</title>
-  <link rel="stylesheet" href="Profile_Page.css?v=1" />
+  <link rel="stylesheet" href="Profile_Page.css?v=2" />
   <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
   <link rel="stylesheet" href="Auth.css?v=1" />
 </head>
@@ -24,7 +24,6 @@
 
       <div class="auth-user-chip">
         <a class="profile-pill" href="Outings_Creations_Page.html">New Outing</a>
-        <button class="auth-logout-button" data-logout-button type="button">Logout</button>
       </div>
     </header>
 
@@ -64,7 +63,7 @@
 
         <article class="profile-card">
           <div class="card-heading">
-            <h2>Preferences</h2>
+            <h2>Settings</h2>
           </div>
           <div class="preference-list">
             <label>
@@ -97,6 +96,9 @@
               </select>
             </label>
           </div>
+          <div class="settings-actions">
+            <button class="settings-logout-button" data-logout-button type="button">Logout</button>
+          </div>
         </article>
 
         <article class="profile-card wide-card">
@@ -112,7 +114,7 @@
 
   <script src="Skeleton_Loaders.js?v=1"></script>
   <script src="Place_Cache.js?v=1"></script>
-  <script src="Auth_Client.js?v=1"></script>
+  <script src="Auth_Client.js?v=3"></script>
   <script src="Profile_Page.js?v=4"></script>
 </body>
 </html>

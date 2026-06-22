@@ -28,15 +28,52 @@ function inferCategory(place) {
   return place.primaryTypeDisplayName?.text || "Activity";
 }
 
+function photoUrl(photoName, width = 640, height = 420) {
+  if (!photoName) return null;
+
+  const params = new URLSearchParams({
+    name: photoName,
+    maxWidthPx: String(width),
+    maxHeightPx: String(height)
+  });
+
+  return `/api/places/photo?${params.toString()}`;
+}
+
 function mapGoogleDetailsToPlaceRow(googlePlace) {
+  const photoName = googlePlace.photos?.[0]?.name || null;
   return {
     google_place_id: googlePlace.id,
     name: googlePlace.displayName?.text || "Unnamed place",
     address: googlePlace.formattedAddress || googlePlace.shortFormattedAddress || "",
+    formatted_address: googlePlace.formattedAddress || googlePlace.shortFormattedAddress || "",
     latitude: googlePlace.location?.latitude ?? null,
     longitude: googlePlace.location?.longitude ?? null,
-    category: inferCategory(googlePlace)
+    category: inferCategory(googlePlace),
+    primary_type: googlePlace.primaryType || null,
+    photo_references: photoName ? [photoName] : [],
+    raw_google_payload: googlePlace,
+    metadata: {
+      source: "google-places",
+      image: photoUrl(photoName),
+      neighborhood: null,
+      price: null,
+      note: googlePlace.primaryTypeDisplayName?.text || null
+    }
   };
+}
+
+function placeHasPhotoMetadata(place = {}) {
+  const metadata = place.metadata || {};
+  const photoReferences = Array.isArray(place.photo_references) ? place.photo_references : [];
+  const rawPayload = place.raw_google_payload || {};
+
+  return Boolean(
+    metadata.image ||
+    photoReferences.length ||
+    rawPayload.photoName ||
+    rawPayload.photos?.[0]?.name
+  );
 }
 
 async function findPlaceByGooglePlaceId(googlePlaceId) {
@@ -60,6 +97,34 @@ async function findPlaceByGooglePlaceId(googlePlaceId) {
       error
     );
   }
+}
+
+async function updatePlaceRow(googlePlaceId, placeRow) {
+  const client = supabase.getSupabaseServiceClient?.() || supabase;
+
+  const updateWithRow = (row) => client
+    .from("places")
+    .update(row)
+    .eq("google_place_id", googlePlaceId)
+    .select("*")
+    .single();
+
+  const { address, ...rowWithoutAddress } = placeRow;
+  let result = await updateWithRow(placeRow);
+  if (result.error && usesMissingAddressColumn(result.error)) {
+    result = await updateWithRow(rowWithoutAddress);
+  }
+
+  if (result.error) {
+    throw new PlaceCacheError(
+      "Could not refresh the Google place in Supabase.",
+      500,
+      "SUPABASE_REFRESH_FAILED",
+      result.error
+    );
+  }
+
+  return result.data;
 }
 
 function usesMissingAddressColumn(error) {
@@ -136,12 +201,8 @@ async function getOrCreatePlace(googlePlaceIdInput) {
 
   // 1. Cache lookup: Supabase is the source of truth once a Google place has been saved.
   const existingPlace = await findPlaceByGooglePlaceId(googlePlaceId);
-  if (existingPlace) {
-    return { place: existingPlace, source: "supabase" };
-  }
-
-  // 2. Cache miss: this is the expected "not found in Supabase" path, so fetch Google next.
   if (!googlePlacesApiKey()) {
+    if (existingPlace) return { place: existingPlace, source: "supabase" };
     throw new PlaceCacheError(
       "Google Places API key is missing. Set GOOGLE_PLACES_API_KEY in .env.",
       500,
@@ -149,6 +210,11 @@ async function getOrCreatePlace(googlePlaceIdInput) {
     );
   }
 
+  if (existingPlace && placeHasPhotoMetadata(existingPlace)) {
+    return { place: existingPlace, source: "supabase" };
+  }
+
+  // 2. Cache miss, or stale cached row: fetch Google details to create/refresh display metadata.
   let googlePlace;
   try {
     googlePlace = await getGooglePlaceDetails(googlePlaceId);
@@ -163,6 +229,11 @@ async function getOrCreatePlace(googlePlaceIdInput) {
 
   if (!googlePlace || !googlePlace.id) {
     throw new PlaceCacheError("Google Places could not find this place.", 404, "GOOGLE_PLACE_NOT_FOUND");
+  }
+
+  if (existingPlace) {
+    const refreshedPlace = await updatePlaceRow(googlePlaceId, mapGoogleDetailsToPlaceRow(googlePlace));
+    return { place: refreshedPlace, source: "refreshed" };
   }
 
   // 3. Persist and return the saved row. The unique index protects against duplicate races.

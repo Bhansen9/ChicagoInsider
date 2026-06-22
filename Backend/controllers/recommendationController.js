@@ -1,6 +1,8 @@
 const { searchChicagoPlaces } = require("../services/googlePlacesService");
 const { parseUserRequest } = require("../services/openaiService");
 
+const HOME_RECOMMENDATION_LIMIT = 20;
+
 async function getRecommendations(req, res, next) {
   try {
     const filters = req.body || {};
@@ -15,7 +17,7 @@ async function getRecommendations(req, res, next) {
 
     const recommendations = await searchChicagoPlaces(
       { ...combinedFilters, prompt: filters.prompt },
-      { limit: 6 }
+      { limit: HOME_RECOMMENDATION_LIMIT }
     );
 
     res.json({

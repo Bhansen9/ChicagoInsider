@@ -280,6 +280,30 @@ select {
   outline: 0;
 }
 
+.settings-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-logout-button {
+  min-height: 38px;
+  width: 100%;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settings-logout-button:hover,
+.settings-logout-button:focus-visible {
+  background: #fee2e2;
+  outline: none;
+}
+
 .empty-state {
   min-height: 160px;
   display: grid;
