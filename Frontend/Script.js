@@ -54,6 +54,8 @@ const PLACE_IMAGE_FALLBACKS = {
 };
 
 const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
+const PLACE_PHOTO_ROTATION_MS = 3000;
+const PLACE_PHOTO_TRANSITION_MS = 220;
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
@@ -66,6 +68,8 @@ let mapMarkers = [];
 let activeMapInfoWindow;
 let mapCloseClickListener;
 let filterSearchTimer;
+let placePhotoRotationTimer;
+let activePlacePhotoCard;
 let hasLoadedInitialPlaces = false;
 let heroSlideIndex = 0;
 let showingHeroImageA = true;
@@ -481,8 +485,19 @@ function placeCard(place) {
   `;
 }
 
-function cyclePlacePhoto(button) {
-  const card = button.closest(".place-card[data-place-id]");
+function stopPlacePhotoRotation() {
+  window.clearInterval(placePhotoRotationTimer);
+  placePhotoRotationTimer = null;
+  activePlacePhotoCard = null;
+}
+
+function placePhotoTransitionMs() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+    ? 0
+    : PLACE_PHOTO_TRANSITION_MS;
+}
+
+function cyclePlaceCardPhoto(card, direction = 1, onlyIfActive = false) {
   if (!card) return;
 
   const place = placesById.get(String(card.dataset.placeId));
@@ -493,17 +508,99 @@ function cyclePlacePhoto(button) {
 
   const image = card.querySelector(".place-card-image");
   const count = card.querySelector(".photo-count");
-  const currentIndex = Number(image?.dataset.photoIndex || 0);
-  const direction = button.dataset.photoAction === "prev" ? -1 : 1;
-  const nextIndex = (currentIndex + direction + photos.length) % photos.length;
+  if (!image || image.dataset.photoChanging === "true") return;
 
-  image.dataset.photoIndex = String(nextIndex);
-  image.src = photos[nextIndex];
-  image.alt = `${place.name} photo ${nextIndex + 1}`;
-  if (count) count.textContent = `${nextIndex + 1} / ${photos.length}`;
+  const currentIndex = Number(image?.dataset.photoIndex || 0);
+  const nextIndex = (currentIndex + direction + photos.length) % photos.length;
+  const nextPhoto = photos[nextIndex];
+  const isCycleAllowed = () => !onlyIfActive || card === activePlacePhotoCard;
+  const cancelPhotoChange = () => {
+    image.classList.remove("is-changing");
+    delete image.dataset.photoChanging;
+  };
+
+  image.dataset.photoChanging = "true";
+
+  const showNextPhoto = () => {
+    if (!card.isConnected || !isCycleAllowed()) {
+      cancelPhotoChange();
+      return;
+    }
+
+    const transitionMs = placePhotoTransitionMs();
+
+    image.classList.add("is-changing");
+    window.setTimeout(() => {
+      if (!card.isConnected || !isCycleAllowed()) {
+        cancelPhotoChange();
+        return;
+      }
+
+      image.dataset.photoIndex = String(nextIndex);
+      image.src = nextPhoto;
+      image.alt = `${place.name} photo ${nextIndex + 1}`;
+      if (count) count.textContent = `${nextIndex + 1} / ${photos.length}`;
+
+      window.requestAnimationFrame(() => {
+        image.classList.remove("is-changing");
+        window.setTimeout(() => {
+          delete image.dataset.photoChanging;
+        }, transitionMs);
+      });
+    }, transitionMs);
+  };
+
+  const preloadedPhoto = new Image();
+  preloadedPhoto.onload = showNextPhoto;
+  preloadedPhoto.onerror = showNextPhoto;
+  preloadedPhoto.src = nextPhoto;
+}
+
+function cyclePlacePhoto(button) {
+  const card = button.closest(".place-card[data-place-id]");
+  const direction = button.dataset.photoAction === "prev" ? -1 : 1;
+  cyclePlaceCardPhoto(card, direction);
+}
+
+function cardHasRotatingPhotos(card) {
+  if (!card) return false;
+
+  const place = placesById.get(String(card.dataset.placeId));
+  return place && placePhotoUrls(place).length > 1;
+}
+
+function startPlacePhotoRotation(card) {
+  stopPlacePhotoRotation();
+
+  if (!cardHasRotatingPhotos(card)) return;
+
+  activePlacePhotoCard = card;
+  cyclePlaceCardPhoto(card, 1, true);
+  placePhotoRotationTimer = window.setInterval(() => {
+    if (!activePlacePhotoCard?.isConnected) {
+      stopPlacePhotoRotation();
+      return;
+    }
+
+    cyclePlaceCardPhoto(activePlacePhotoCard, 1, true);
+  }, PLACE_PHOTO_ROTATION_MS);
+}
+
+function handlePlaceCardMouseOver(event) {
+  const card = event.target.closest(".place-card[data-place-id]");
+  if (!card || !placeGrid.contains(card) || card.contains(event.relatedTarget)) return;
+
+  startPlacePhotoRotation(card);
+}
+
+function handlePlaceCardMouseOut(event) {
+  const card = event.target.closest(".place-card[data-place-id]");
+  if (!card || !placeGrid.contains(card) || card.contains(event.relatedTarget)) return;
+  if (card === activePlacePhotoCard) stopPlacePhotoRotation();
 }
 
 function renderRecommendations(recommendations, parsedFilters = {}) {
+  stopPlacePhotoRotation();
   lastRecommendations = recommendations;
   lastParsedFilters = parsedFilters;
   const visibleRecommendations = recommendations.filter((place) => !isPlaceSaved(place));
@@ -732,6 +829,9 @@ placeGrid.addEventListener("click", async (event) => {
     saveButton.disabled = false;
   }
 });
+
+placeGrid.addEventListener("mouseover", handlePlaceCardMouseOver);
+placeGrid.addEventListener("mouseout", handlePlaceCardMouseOut);
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeApp);

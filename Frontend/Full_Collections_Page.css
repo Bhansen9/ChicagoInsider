@@ -228,7 +228,7 @@ input {
 
 .collections-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 265px));
   gap: 22px;
 }
 
@@ -324,7 +324,6 @@ input {
 .save-spot {
   width: max-content;
   min-height: 28px;
-  margin-top: auto;
   border: 0;
   border-radius: 6px;
   background: var(--green);
@@ -335,9 +334,18 @@ input {
   cursor: pointer;
 }
 
+.place-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
 .save-spot.is-saved {
   background: #bbf7d0;
   color: #166534;
+  cursor: default;
 }
 
 .remove-saved-spot {
@@ -353,7 +361,8 @@ input {
 }
 
 .empty-state {
-  min-height: 300px;
+  grid-column: 1 / -1;
+  min-height: 606px;
   display: grid;
   place-content: center;
   color: var(--muted);

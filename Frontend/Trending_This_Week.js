@@ -5,93 +5,51 @@ const skeletons = window.ChicagoInsiderSkeletons;
 const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
+const TRENDING_LIMIT = 12;
+const TRENDING_FILTER_LIMIT = 12;
+const TRENDING_SEARCHES = [
+  {
+    key: "food",
+    label: "new restaurants",
+    filters: {
+      prompt: "new and popular restaurants people are talking about in Chicago this week",
+      category: "Food"
+    }
+  },
+  {
+    key: "bar",
+    label: "cocktail bars",
+    filters: {
+      prompt: "trending bars rooftop bars cocktail lounges and nightlife in Chicago this week",
+      category: "Bar"
+    }
+  },
+  {
+    key: "activity",
+    label: "weekend activities",
+    filters: {
+      prompt: "popular things to do museums parks activities in Chicago this week",
+      category: "Activity"
+    }
+  },
+  {
+    key: "free",
+    label: "free plans",
+    filters: {
+      prompt: "free things to do in Chicago this week",
+      category: "Activity",
+      budget: "free"
+    }
+  }
+];
 
 function resolveAssetUrl(url) {
   if (!url || !url.startsWith("/")) return url;
   return `${API_BASE_URL}${url}`;
 }
 
-let trendingPlaces = [
-  {
-    id: "cindy",
-    rank: 1,
-    name: "Cindy's Rooftop",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "Downtown",
-    heat: "Hot for views",
-    image: "https://cdn.prod.website-files.com/692deee1433d0acae210e525/6930b2963bc306834dd9c99c_Daniel%20Kelleghan%20Photography-2024-03-25%20Cindys57247-HDR.avif",
-    reason: "Rooftop season energy, skyline photos, and easy pre-show plans around Millennium Park.",
-    bestFor: "Rooftop drinks, brunch, groups"
-  },
-  {
-    id: "riverwalk",
-    rank: 2,
-    name: "Chicago Riverwalk",
-    category: "Activity",
-    type: "activity",
-    price: "Free",
-    neighborhood: "River North",
-    heat: "Most saved walk",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Chicago%20Riverwalk%20%2851556708640%29.jpg?width=900",
-    reason: "Low-cost, scenic, flexible, and easy to pair with food or drinks nearby.",
-    bestFor: "Walkable plans, views, visitors"
-  },
-  {
-    id: "au-cheval",
-    rank: 3,
-    name: "Au Cheval",
-    category: "Food",
-    type: "food",
-    price: "$$$",
-    neighborhood: "West Loop",
-    heat: "Food queue magnet",
-    image: "https://images.squarespace-cdn.com/content/v1/67223ccb89a1690d7a80caa4/1732119030238-4C3W8KF5GEIN0ZR2Z5XA/auc1-29.jpg",
-    reason: "Still a go-to pick for burger runs and West Loop dinner plans.",
-    bestFor: "Foodie nights, late dinners"
-  },
-  {
-    id: "millennium",
-    rank: 4,
-    name: "Millennium Park",
-    category: "Landmark",
-    type: "free",
-    price: "Free",
-    neighborhood: "Downtown",
-    heat: "Visitor favorite",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Millennium%20park%2Cchicago.JPG?width=900",
-    reason: "A reliable anchor stop for photos, first visits, and downtown wandering.",
-    bestFor: "Photos, first-time visitors"
-  },
-  {
-    id: "violet-hour",
-    rank: 5,
-    name: "The Violet Hour",
-    category: "Bar",
-    type: "bar",
-    price: "$$$",
-    neighborhood: "Wicker Park",
-    heat: "Date-night spike",
-    image: "https://images.squarespace-cdn.com/content/v1/5689f7a2c21b8690d5c16c46/1626115529676-3NAZ1D98F1VN338QGJW4/tvh7.jpeg",
-    reason: "A polished cocktail stop that works well after dinner in Wicker Park.",
-    bestFor: "Cocktails, dates, quiet nights"
-  },
-  {
-    id: "lincoln-park-zoo",
-    rank: 6,
-    name: "Lincoln Park Zoo",
-    category: "Activity",
-    type: "free",
-    price: "Free",
-    neighborhood: "Lincoln Park",
-    heat: "Free-plan favorite",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lincoln%20Park%20Zoo%2C%20Chicago%2C%20United%20States%20%28Unsplash%20LfGqCrLmhp0%29.jpg?width=900",
-    reason: "Free admission, walkable nearby parks, and a calm afternoon pace.",
-    bestFor: "Low-cost outings, families"
-  }
-];
-
+let trendingPlaces = [];
+let trendingPlacesByFilter = {};
 let activeFilter = "all";
 let savedPlaceIds = loadSavedPlaceIds();
 let savedSpotByKey = new Map();
@@ -169,6 +127,148 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function titleCase(value) {
+  return String(value || "")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function uniqueTrendingCandidates(candidates) {
+  const byKey = new Map();
+
+  candidates.forEach((candidate) => {
+    const place = candidate.place || {};
+    const key = String(
+      place.googlePlaceId ||
+      place.google_place_id ||
+      place.place_id ||
+      place.id ||
+      place.name ||
+      ""
+    ).toLowerCase();
+
+    if (!key || byKey.has(key)) return;
+    byKey.set(key, candidate);
+  });
+
+  return [...byKey.values()];
+}
+
+function trendScore(candidate) {
+  const place = candidate.place || {};
+  const rating = Number(place.rating) || 0;
+  const ratingCount = Number(place.userRatingCount || place.user_rating_count) || 0;
+  const sourceBoost = (TRENDING_SEARCHES.length - candidate.sourceIndex) * 3;
+  const photoBoost = place.image || place.imageUrl || place.photoName ? 4 : 0;
+
+  return (rating * 18) + (Math.log10(ratingCount + 1) * 12) + sourceBoost + photoBoost;
+}
+
+function heatForPlace(place = {}) {
+  const rating = Number(place.rating) || 0;
+  const ratingCount = Number(place.userRatingCount || place.user_rating_count) || 0;
+
+  if (rating && ratingCount) return `${rating.toFixed(1)} | ${ratingCount.toLocaleString()} ratings`;
+  if (rating) return `${rating.toFixed(1)} on Google`;
+  return "Live Chicago pick";
+}
+
+function bestForText(place = {}) {
+  if (Array.isArray(place.bestFor) && place.bestFor.length) {
+    return place.bestFor.map(titleCase).join(", ");
+  }
+
+  if (Array.isArray(place.vibes) && place.vibes.length) {
+    return place.vibes.slice(0, 3).map(titleCase).join(", ");
+  }
+
+  return place.note || "Chicago plans";
+}
+
+function normalizeTrendingPlace(candidate, rank) {
+  const place = candidate.place || {};
+  const searchLabel = candidate.search?.label || "Chicago";
+  const category = place.category || candidate.search?.filters?.category || "Activity";
+  const price = place.price || (category === "Activity" ? "Free" : "$$");
+
+  return {
+    ...place,
+    rank,
+    category,
+    price,
+    type: place.type || (category === "Food" ? "food" : category === "Bar" ? "bar" : price === "Free" ? "free" : "activity"),
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+    heat: heatForPlace(place),
+    reason: `Pulled from a live ${searchLabel} search, then ranked by rating, review activity, and photo quality.`,
+    bestFor: bestForText(place),
+    trendScore: trendScore(candidate)
+  };
+}
+
+function rankedTrendingPlaces(candidates, limit = TRENDING_LIMIT) {
+  return uniqueTrendingCandidates(candidates)
+    .sort((a, b) => trendScore(b) - trendScore(a))
+    .slice(0, limit)
+    .map((candidate, index) => normalizeTrendingPlace(candidate, index + 1));
+}
+
+function candidateMatchesFilter(candidate, filter) {
+  if (filter === "all") return true;
+  const place = candidate.place || {};
+  const searchKey = candidate.search?.key;
+
+  if (filter === "free") return place.type === "free" || place.price === "Free" || searchKey === "free";
+  return place.type === filter || searchKey === filter;
+}
+
+function trendingPlacesForFilter(filter) {
+  return trendingPlacesByFilter[filter] || [];
+}
+
+function allLoadedTrendingPlaces() {
+  return Object.values(trendingPlacesByFilter).flat();
+}
+
+function uniqueLoadedTrendingPlaces() {
+  const byId = new Map();
+  allLoadedTrendingPlaces().forEach((place) => {
+    const key = String(place.googlePlaceId || place.google_place_id || place.place_id || place.id || place.name || "");
+    if (key && !byId.has(key)) byId.set(key, place);
+  });
+  return [...byId.values()];
+}
+
+async function fetchTrendingSearch(search, sourceIndex) {
+  const response = await fetch(`${API_BASE_URL}/api/recommendations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(search.filters)
+  });
+
+  if (!response.ok) throw new Error(`Trending search failed for ${search.label}`);
+
+  const data = await response.json();
+  return (data.recommendations || []).map((place) => ({
+    place,
+    search,
+    sourceIndex
+  }));
+}
+
+async function loadFallbackTrendingCandidates() {
+  const response = await fetch(`${API_BASE_URL}/api/places`);
+  if (!response.ok) throw new Error("Could not load fallback Google Places");
+
+  const data = await response.json();
+  return (data.places || []).map((place) => ({
+    place,
+    search: { label: "Chicago places" },
+    sourceIndex: TRENDING_SEARCHES.length
+  }));
+}
+
 function renderTrendCard(place) {
   const isSaved = isPlaceSaved(place);
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
@@ -200,39 +300,60 @@ function renderTrendCard(place) {
 }
 
 async function loadTrendingPlacesFromApi() {
-  const response = await fetch(`${API_BASE_URL}/api/places`);
-  if (!response.ok) throw new Error("Could not load Google Places");
+  const searchResults = await Promise.allSettled(
+    TRENDING_SEARCHES.map((search, index) => fetchTrendingSearch(search, index))
+  );
+  let candidates = searchResults.flatMap((result) => (
+    result.status === "fulfilled" ? result.value : []
+  ));
 
-  const data = await response.json();
-  if (!Array.isArray(data.places) || !data.places.length) return;
+  searchResults
+    .filter((result) => result.status === "rejected")
+    .forEach((result) => console.error(result.reason));
 
-  trendingPlaces = data.places
-    .slice()
-    .sort((a, b) => (
-      (Number(b.rating) || 0) - (Number(a.rating) || 0) ||
-      (Number(b.userRatingCount) || 0) - (Number(a.userRatingCount) || 0)
-    ))
-    .slice(0, 8)
-    .map((place, index) => ({
-      ...place,
-      rank: index + 1,
-      image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
-      heat: place.rating ? `${Number(place.rating).toFixed(1)} on Google` : "Chicago pick",
-      reason: place.description || "A Google Places result inside Chicago.",
-      bestFor: place.note || "Chicago plans"
-    }));
+  if (!candidates.length) {
+    candidates = await loadFallbackTrendingCandidates();
+  } else {
+    const barCandidates = candidates.filter((candidate) => candidateMatchesFilter(candidate, "bar"));
+    if (barCandidates.length < TRENDING_FILTER_LIMIT) {
+      const fallbackCandidates = await loadFallbackTrendingCandidates().catch((error) => {
+        console.error(error);
+        return [];
+      });
+      candidates = [
+        ...candidates,
+        ...fallbackCandidates.filter((candidate) => candidateMatchesFilter(candidate, "bar"))
+      ];
+    }
+  }
+
+  trendingPlaces = rankedTrendingPlaces(candidates, TRENDING_LIMIT);
+  trendingPlacesByFilter = {
+    all: trendingPlaces,
+    food: rankedTrendingPlaces(candidates.filter((candidate) => candidateMatchesFilter(candidate, "food")), TRENDING_FILTER_LIMIT),
+    bar: rankedTrendingPlaces(candidates.filter((candidate) => candidateMatchesFilter(candidate, "bar")), TRENDING_FILTER_LIMIT),
+    activity: rankedTrendingPlaces(candidates.filter((candidate) => candidateMatchesFilter(candidate, "activity")), TRENDING_FILTER_LIMIT),
+    free: rankedTrendingPlaces(candidates.filter((candidate) => candidateMatchesFilter(candidate, "free")), TRENDING_FILTER_LIMIT)
+  };
 }
 
 function renderTrends() {
-  const filteredPlaces = trendingPlaces.filter((place) => (
-    activeFilter === "all" || place.type === activeFilter
-  ));
+  const filteredPlaces = trendingPlacesForFilter(activeFilter);
+  const activeFilterLabel = document.querySelector(`.trend-tab[data-filter="${activeFilter}"]`)?.textContent || "that filter";
 
-  trendGrid.innerHTML = filteredPlaces.map(renderTrendCard).join("");
+  trendGrid.innerHTML = filteredPlaces.length
+    ? filteredPlaces.map(renderTrendCard).join("")
+    : `
+        <div class="trend-empty-state">
+          ${trendingPlaces.length
+            ? `No ${escapeHtml(activeFilterLabel.toLowerCase())} picks loaded yet. Try another tab.`
+            : "No trending places loaded yet. Make sure the backend server is running."}
+        </div>
+      `;
   skeletons?.markLoaded(trendGrid);
   window.cacheDisplayedPlaces?.(filteredPlaces);
   skeletons?.clearStat(savedTrendCount);
-  savedTrendCount.textContent = trendingPlaces.filter(isPlaceSaved).length;
+  savedTrendCount.textContent = uniqueLoadedTrendingPlaces().filter(isPlaceSaved).length;
 }
 
 trendTabs.forEach((tab) => {
@@ -250,7 +371,7 @@ trendGrid.addEventListener("click", async (event) => {
   if (!saveButton) return;
 
   const placeId = saveButton.dataset.placeId;
-  const place = trendingPlaces.find((item) => String(item.id) === String(placeId));
+  const place = allLoadedTrendingPlaces().find((item) => String(item.id) === String(placeId));
   if (!place) return;
 
   saveButton.disabled = true;

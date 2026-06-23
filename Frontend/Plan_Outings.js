@@ -57,6 +57,40 @@ function updatePlaybookPlaces(nextPlaces) {
   renderPlaybook();
 }
 
+function playbookServerPlaceId(place = {}) {
+  return place.supabasePlaceId || place.placeId || "";
+}
+
+async function clearPlaybookPlaces() {
+  const placesToClear = [...playbookPlaces];
+  const serverPlaceIds = [...new Set(placesToClear.map(playbookServerPlaceId).filter(Boolean).map(String))];
+
+  updatePlaybookPlaces([]);
+  if (!serverPlaceIds.length) return;
+
+  const deleteResults = await Promise.allSettled(
+    serverPlaceIds.map((placeId) => auth.deletePlaceFromDefaultPlaybook(placeId))
+  );
+  const failedPlaceIds = deleteResults
+    .map((result, index) => result.status === "rejected" ? serverPlaceIds[index] : "")
+    .filter(Boolean);
+
+  if (!failedPlaceIds.length) return;
+
+  deleteResults
+    .filter((result) => result.status === "rejected")
+    .forEach((result) => console.error(result.reason));
+
+  const failedIdSet = new Set(failedPlaceIds);
+  updatePlaybookPlaces(placesToClear
+    .filter((place) => failedIdSet.has(String(playbookServerPlaceId(place))))
+    .map((place) => ({
+      ...place,
+      syncFailed: true,
+      syncError: "Clear failed"
+    })));
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -563,12 +597,19 @@ outingFilterBtn.addEventListener("click", (event) => {
   outingFilterMenu.classList.toggle("open");
 });
 
-playbookFilterMenu.addEventListener("click", (event) => {
+playbookFilterMenu.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
 
   if (button.dataset.action === "clear") {
-    updatePlaybookPlaces([]);
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = "Clearing...";
+    await clearPlaybookPlaces();
+    button.disabled = false;
+    button.textContent = originalText;
+    closeMenus();
+    return;
   }
 
   if (button.dataset.action === "budget") {

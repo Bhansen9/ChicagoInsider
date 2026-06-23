@@ -16,6 +16,7 @@ function resolveAssetUrl(url) {
 let places = [];
 let activeCollectionFilter = "all";
 let activeSort = "featured";
+let playbookPlaceKeys = new Set();
 
 function escapeHtml(value) {
   return String(value || "")
@@ -29,6 +30,18 @@ function escapeHtml(value) {
 function displayPlaceId(place = {}) {
   const rawId = String(place.google_place_id || place.googlePlaceId || place.place_id || place.id || "");
   return rawId.startsWith("local:") ? rawId.slice(6) : rawId;
+}
+
+function placeMatchKeys(place = {}) {
+  return [
+    place.id,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    place.placeId,
+    place.supabasePlaceId,
+    place.name?.toLowerCase()
+  ].filter(Boolean).map(String);
 }
 
 function priceFromStoredPlace(place = {}, metadata = {}) {
@@ -143,6 +156,14 @@ async function loadSavedPlacesFromApi() {
   }
 }
 
+async function loadPlaybookPlaceKeysFromApi() {
+  const playbookPlaces = await auth.getDefaultPlaybookPlaces();
+  playbookPlaceKeys = new Set();
+  playbookPlaces.forEach((place) => {
+    placeMatchKeys(place).forEach((key) => playbookPlaceKeys.add(key));
+  });
+}
+
 function matchesSearch(place, query) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return true;
@@ -178,6 +199,7 @@ function sortedPlaces(nextPlaces) {
 function cardForPlace(place) {
   const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
   const rating = Number(place.rating || 0);
+  const isInPlaybook = placeMatchKeys(place).some((key) => playbookPlaceKeys.has(key));
   const ratingHtml = rating
     ? `<span class="rating"><span class="stars">*****</span> ${rating.toFixed(1)}</span>`
     : "";
@@ -195,9 +217,14 @@ function cardForPlace(place) {
         <p class="description">${escapeHtml(place.description)}</p>
         <p class="source-note">Saved to your Full Collections.</p>
         <p class="vibes">${escapeHtml(place.note)}</p>
-        <button class="save-spot remove-saved-spot" type="button" data-saved-spot-id="${escapeHtml(place.savedSpotId)}">
-          Remove
-        </button>
+        <div class="place-card-actions">
+          <button class="save-spot add-playbook-spot${isInPlaybook ? " is-saved" : ""}" type="button" data-add-playbook-saved-spot-id="${escapeHtml(place.savedSpotId)}" ${isInPlaybook ? "disabled" : ""}>
+            ${isInPlaybook ? "Added" : "Add to Playbook"}
+          </button>
+          <button class="save-spot remove-saved-spot" type="button" data-saved-spot-id="${escapeHtml(place.savedSpotId)}">
+            Remove
+          </button>
+        </div>
       </div>
     </article>
   `;
@@ -270,6 +297,31 @@ collectionSortMenu.addEventListener("click", (event) => {
 });
 
 collectionGrid.addEventListener("click", async (event) => {
+  const playbookButton = event.target.closest("button[data-add-playbook-saved-spot-id]");
+  if (playbookButton) {
+    const savedSpotId = playbookButton.dataset.addPlaybookSavedSpotId;
+    const place = places.find((item) => String(item.savedSpotId) === String(savedSpotId));
+    if (!place) return;
+
+    playbookButton.disabled = true;
+    playbookButton.textContent = "Adding...";
+
+    try {
+      const playbookPlace = await auth.addPlaceToDefaultPlaybook(place);
+      [
+        ...placeMatchKeys(place),
+        playbookPlace?.place_id
+      ].filter(Boolean).forEach((key) => playbookPlaceKeys.add(String(key)));
+      playbookButton.textContent = "Added";
+      playbookButton.classList.add("is-saved");
+    } catch (error) {
+      console.error(error);
+      playbookButton.disabled = false;
+      playbookButton.textContent = "Try Again";
+    }
+    return;
+  }
+
   const removeButton = event.target.closest("button[data-saved-spot-id]");
   if (!removeButton) return;
 
@@ -298,12 +350,14 @@ async function initializeCollectionsPage() {
 
   if (!skeletons) {
     await loadSavedPlacesFromApi().catch(console.error);
+    await loadPlaybookPlaceKeysFromApi().catch(console.error);
     renderCollections();
     return;
   }
 
   skeletons.showCollectionCards(collectionGrid, 8);
   await loadSavedPlacesFromApi().catch(console.error);
+  await loadPlaybookPlaceKeysFromApi().catch(console.error);
   renderCollections();
 }
 

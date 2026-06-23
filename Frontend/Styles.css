@@ -232,6 +232,10 @@ input {
     animation-duration: 1ms;
     animation-iteration-count: 1;
   }
+
+  .place-card-image {
+    transition: none;
+  }
 }
 
 .layout {
@@ -425,6 +429,14 @@ textarea {
   border: 0;
   border-radius: 7px;
   display: block;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+  will-change: opacity, transform, filter;
+}
+
+.place-card-image.is-changing {
+  opacity: 0;
+  transform: scale(1.015);
+  filter: saturate(0.92);
 }
 
 .place-card .photo-nav-button {

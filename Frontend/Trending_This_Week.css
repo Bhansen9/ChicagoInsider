@@ -185,8 +185,20 @@ button {
 
 .trend-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 345px));
   gap: 18px;
+}
+
+.trend-empty-state {
+  grid-column: 1 / -1;
+  min-height: 536px;
+  display: grid;
+  place-content: center;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .trend-card {
