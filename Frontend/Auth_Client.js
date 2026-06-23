@@ -291,6 +291,20 @@
     return data.outing;
   }
 
+  async function updateOuting(outingId, payload) {
+    const data = await apiFetch(`/api/outings/${encodeURIComponent(outingId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    });
+    return data.outing;
+  }
+
+  async function deleteOuting(outingId) {
+    return apiFetch(`/api/outings/${encodeURIComponent(outingId)}`, {
+      method: "DELETE"
+    });
+  }
+
   async function getOutings() {
     const data = await apiFetch("/api/outings");
     return data.outings || [];
@@ -336,6 +350,7 @@
     applyAuthUi,
     clearAuthState,
     createOuting,
+    deleteOuting,
     deleteSavedSpot,
     deletePlaceFromDefaultPlaybook,
     forgotPassword,
@@ -357,6 +372,7 @@
     saveAuthState,
     addOutingContributor,
     signup,
+    updateOuting,
     updateProfile
   };
 

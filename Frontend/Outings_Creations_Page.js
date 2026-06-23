@@ -21,11 +21,14 @@ const contributorsCard = document.querySelector("#contributorsCard");
 const addContributorPanelBtn = document.querySelector("#addContributorPanelBtn");
 const budgetCard = document.querySelector("#budgetCard");
 const canvasDropZone = document.querySelector("#canvasDropZone");
+const autosaveStatus = document.querySelector("#autosaveStatus");
 const skeletons = window.ChicagoInsiderSkeletons;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
 const savedOutingsStorageKey = "chicagoInsider.savedOutings";
 const workspaceStorageKey = "chicagoInsider.workspacePlaces";
 const contributorsStorageKey = "chicagoInsider.contributors";
+const currentOutingIdStorageKey = "chicagoInsider.currentOutingId";
+const selectedOutingStorageKey = "chicagoInsider.selectedOuting";
 const auth = window.ChicagoInsiderAuth;
 
 const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
@@ -169,6 +172,91 @@ function normalizeStoredPlace(place = {}) {
   };
 }
 
+function normalizeSelectedOutingPlace(place = {}) {
+  return {
+    ...place,
+    id: place.id || place.googlePlaceId || place.google_place_id || String(place.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    supabasePlaceId: place.supabasePlaceId || place.placeId || "",
+    name: place.name || "Chicago place",
+    category: place.category || "Activity",
+    price: place.price || "$$",
+    neighborhood: place.neighborhood || "Chicago",
+    image: resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"),
+    website: place.website || place.websiteUri || "Saved place",
+    timeWindow: place.timeWindow || "Hours vary",
+    note: place.note || "Saved to your outing",
+    coordinates: place.coordinates || {
+      lat: Number(place.latitude) || 41.8781,
+      lng: Number(place.longitude) || -87.6298
+    }
+  };
+}
+
+function addPlacesToLookup(nextPlaces = []) {
+  nextPlaces.map(normalizeSelectedOutingPlace).forEach((place) => {
+    if (!allPlaces.some((existingPlace) => existingPlace.id === place.id)) {
+      allPlaces.push(place);
+    }
+  });
+}
+
+function placesFromSelectedOuting(snapshotPlaces = [], placeIds = []) {
+  const normalizedSnapshotPlaces = snapshotPlaces.map(normalizeSelectedOutingPlace);
+  addPlacesToLookup(normalizedSnapshotPlaces);
+
+  if (!placeIds.length) return normalizedSnapshotPlaces;
+
+  const placeById = new Map();
+  [...allPlaces, ...normalizedSnapshotPlaces].forEach((place) => {
+    [
+      place.id,
+      place.supabasePlaceId,
+      place.googlePlaceId,
+      place.google_place_id
+    ].filter(Boolean).forEach((id) => placeById.set(String(id), normalizeSelectedOutingPlace(place)));
+  });
+
+  return placeIds
+    .map((placeId) => placeById.get(String(placeId)))
+    .filter(Boolean);
+}
+
+function loadSelectedOuting() {
+  try {
+    const selectedOuting = JSON.parse(localStorage.getItem(selectedOutingStorageKey) || "null");
+    if (!selectedOuting) return false;
+
+    clientOutingId = selectedOuting.clientId || selectedOuting.id || `outing-${Date.now()}`;
+    savedServerOutingId = selectedOuting.serverId || "";
+    saveCurrentOutingId();
+    outingTitleInput.value = selectedOuting.title || "Untitled Outing";
+    outingDateInput.value = selectedOuting.date || new Date().toISOString().slice(0, 10);
+    timeframeSelect.value = selectedOuting.timeframe || "Evening: 5 PM - 9 PM";
+
+    const workspaceIds = Array.isArray(selectedOuting.workspacePlaceIds)
+      ? selectedOuting.workspacePlaceIds
+      : selectedOuting.playbookPlaceIds || [];
+    const workspaceSnapshotPlaces = Array.isArray(selectedOuting.workspacePlaces)
+      ? selectedOuting.workspacePlaces
+      : selectedOuting.playbookPlaces || [];
+
+    workspacePlaces = placesFromSelectedOuting(workspaceSnapshotPlaces, workspaceIds);
+    if (selectedOuting.playbookPlaces?.length) {
+      playbookPlaces = placesFromSelectedOuting(selectedOuting.playbookPlaces, selectedOuting.playbookPlaceIds || []);
+    }
+    contributors = normalizeContributors(selectedOuting.contributors);
+    saveWorkspacePlaces();
+    savePlaybookPlaces();
+    saveContributors();
+    localStorage.removeItem(selectedOutingStorageKey);
+    return true;
+  } catch (error) {
+    console.error(error);
+    localStorage.removeItem(selectedOutingStorageKey);
+    return false;
+  }
+}
+
 async function loadPlacesFromApi() {
   const response = await fetch(`${API_BASE_URL}/api/places`);
   if (!response.ok) throw new Error("Could not load Google Places");
@@ -201,8 +289,12 @@ let activeInfoWindow;
 let mapCloseClickListener;
 let contributors = loadContributors();
 const mockUsers = ["ben", "trevor", "alex", "jordan"];
+let clientOutingId = loadCurrentOutingId();
 let savedServerOutingId = null;
 let outingSavePromise = null;
+let autosaveTimer = null;
+let saveQueuedWhilePending = false;
+let isInitialCreationLoad = true;
 let undoStack = [];
 let redoStack = [];
 let titleEditSnapshot = null;
@@ -273,6 +365,7 @@ function undoOutingChange() {
   const previousState = undoStack.pop();
   redoStack.push(currentState);
   applyOutingState(previousState);
+  queueCurrentOutingSave();
 }
 
 function redoOutingChange() {
@@ -282,6 +375,7 @@ function redoOutingChange() {
   const nextState = redoStack.pop();
   undoStack.push(currentState);
   applyOutingState(nextState);
+  queueCurrentOutingSave();
 }
 
 function syncOutingTitleStyle() {
@@ -404,23 +498,91 @@ function saveContributors() {
   }
 }
 
-function updatePlaybookPlaces(nextPlaces, shouldRecordHistory = true) {
+function loadCurrentOutingId() {
+  try {
+    const savedId = localStorage.getItem(currentOutingIdStorageKey);
+    if (savedId) return savedId;
+  } catch (error) {
+    // Some browser modes can block localStorage.
+  }
+
+  const nextId = `outing-${Date.now()}`;
+  try {
+    localStorage.setItem(currentOutingIdStorageKey, nextId);
+  } catch (error) {
+    // Some browser modes can block localStorage.
+  }
+  return nextId;
+}
+
+function saveCurrentOutingId() {
+  try {
+    localStorage.setItem(currentOutingIdStorageKey, clientOutingId);
+  } catch (error) {
+    // Some browser modes can block localStorage.
+  }
+}
+
+function resetCurrentOutingId() {
+  clientOutingId = `outing-${Date.now()}`;
+  savedServerOutingId = null;
+  saveCurrentOutingId();
+}
+
+function updateAutosaveStatus(state) {
+  if (!autosaveStatus) return;
+
+  const labels = {
+    idle: "Saved",
+    pending: "Unsaved changes",
+    saving: "Saving...",
+    saved: "Saved",
+    failed: "Saved locally"
+  };
+
+  autosaveStatus.dataset.state = state;
+  autosaveStatus.textContent = labels[state] || labels.idle;
+}
+
+function updatePlaybookPlaces(nextPlaces, shouldRecordHistory = true, shouldSave = true) {
   if (shouldRecordHistory) pushUndoState();
   playbookPlaces = nextPlaces;
   savePlaybookPlaces();
   renderPlaybook();
   renderPlaybookMap();
   renderBudgetEstimate();
+  if (shouldSave) queueCurrentOutingSave();
+}
+
+function outingSnapshotPlace(place = {}) {
+  return {
+    id: place.id,
+    supabasePlaceId: place.supabasePlaceId,
+    googlePlaceId: place.googlePlaceId || place.google_place_id,
+    name: place.name,
+    category: place.category,
+    price: place.price,
+    neighborhood: place.neighborhood,
+    image: place.image || place.imageUrl,
+    website: place.website || place.websiteUri,
+    timeWindow: place.timeWindow,
+    note: place.note,
+    coordinates: place.coordinates
+  };
 }
 
 function currentOutingSnapshot() {
   return {
-    id: `outing-${Date.now()}`,
+    id: savedServerOutingId || clientOutingId,
+    clientId: clientOutingId,
+    serverId: savedServerOutingId,
     title: outingTitleInput.value.trim() || "Untitled Outing",
     date: outingDateInput.value,
     timeframe: timeframeSelect.value,
     playbookPlaceIds: playbookPlaces.map((place) => place.id),
     workspacePlaceIds: workspacePlaces.map((place) => place.id),
+    playbookPlaces: playbookPlaces.map(outingSnapshotPlace),
+    workspacePlaces: workspacePlaces.map(outingSnapshotPlace),
     contributors,
     savedAt: new Date().toISOString()
   };
@@ -441,52 +603,121 @@ function currentOutingApiPayload() {
     starts_at: outingDateInput.value || null,
     description: `TimeFrame: ${timeframeSelect.value}`,
     status: "planned",
-    places: (workspacePlaces.length ? workspacePlaces : playbookPlaces),
+    places: workspacePlaces,
     contributors: contributorPayload()
   };
 }
 
 async function saveCurrentOutingToApi() {
-  if (savedServerOutingId) return savedServerOutingId;
   if (outingSavePromise) return outingSavePromise;
 
-  outingSavePromise = auth.createOuting(currentOutingApiPayload())
+  const snapshot = currentOutingSnapshot();
+  const payload = currentOutingApiPayload();
+  const savingClientId = clientOutingId;
+  const savingServerId = savedServerOutingId;
+  const request = savingServerId && auth.updateOuting
+    ? auth.updateOuting(savingServerId, payload)
+    : auth.createOuting(payload);
+
+  updateAutosaveStatus("saving");
+
+  outingSavePromise = request
     .then((outing) => {
-      savedServerOutingId = outing.id;
-      return outing.id;
+      const serverId = outing?.id || savingServerId;
+      if (serverId && clientOutingId === savingClientId) {
+        savedServerOutingId = serverId;
+      }
+      saveOutingSnapshotLocally({
+        ...snapshot,
+        id: serverId || snapshot.id,
+        serverId,
+        savedAt: new Date().toISOString()
+      });
+      if (clientOutingId === savingClientId) updateAutosaveStatus("saved");
+      return serverId;
     })
     .catch((error) => {
       console.error(error);
+      if (clientOutingId === savingClientId) updateAutosaveStatus("failed");
       return null;
     })
     .finally(() => {
       outingSavePromise = null;
+      if (saveQueuedWhilePending) {
+        saveQueuedWhilePending = false;
+        saveCurrentOuting();
+      }
     });
 
   return outingSavePromise;
 }
 
-function saveCurrentOuting() {
+function saveOutingSnapshotLocally(snapshot) {
   try {
     const savedOutings = JSON.parse(localStorage.getItem(savedOutingsStorageKey) || "[]");
-    savedOutings.push(currentOutingSnapshot());
+    const existingIndex = savedOutings.findIndex((outing) => (
+      outing.clientId === snapshot.clientId
+      || (snapshot.serverId && outing.serverId === snapshot.serverId)
+      || outing.id === snapshot.id
+    ));
+
+    if (existingIndex >= 0) {
+      savedOutings[existingIndex] = {
+        ...savedOutings[existingIndex],
+        ...snapshot
+      };
+    } else {
+      savedOutings.push(snapshot);
+    }
+
     localStorage.setItem(savedOutingsStorageKey, JSON.stringify(savedOutings));
   } catch (error) {
     // Saving is best-effort while the app is front-end only.
   }
+}
+
+function saveCurrentOutingLocally() {
+  saveOutingSnapshotLocally(currentOutingSnapshot());
+}
+
+function queueCurrentOutingSave() {
+  saveCurrentOutingLocally();
+  updateAutosaveStatus("pending");
+
+  if (outingSavePromise) {
+    saveQueuedWhilePending = true;
+    return;
+  }
+
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(() => {
+    autosaveTimer = null;
+    saveCurrentOuting();
+  }, 600);
+}
+
+function saveCurrentOuting() {
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = null;
+  saveCurrentOutingLocally();
+  if (outingSavePromise) {
+    saveQueuedWhilePending = true;
+    return outingSavePromise;
+  }
+
   saveCurrentOutingToApi();
 }
 
 function startNewOuting() {
   pushUndoState();
   saveCurrentOuting();
+  resetCurrentOutingId();
   outingTitleInput.value = "Untitled Outing";
   outingDateInput.value = new Date().toISOString().slice(0, 10);
   timeframeSelect.value = "Evening: 5 PM - 9 PM";
   playbookPlaces = [];
   workspacePlaces = [];
   contributors = normalizeContributors();
-  savedServerOutingId = null;
   savePlaybookPlaces();
   saveWorkspacePlaces();
   saveContributors();
@@ -497,6 +728,7 @@ function startNewOuting() {
   renderContributors();
   renderBudgetEstimate();
   renderSharedUsers();
+  updateAutosaveStatus("idle");
 }
 
 function renameOuting() {
@@ -528,6 +760,7 @@ function emailOuting() {
 
 function deleteCurrentOuting() {
   pushUndoState();
+  resetCurrentOutingId();
   outingTitleInput.value = "Untitled Outing";
   outingDateInput.value = new Date().toISOString().slice(0, 10);
   timeframeSelect.value = "Evening: 5 PM - 9 PM";
@@ -535,12 +768,13 @@ function deleteCurrentOuting() {
   workspacePlaces = [];
   saveContributors();
   saveWorkspacePlaces();
-  updatePlaybookPlaces([], false);
+  updatePlaybookPlaces([], false, false);
   renderWorkspace();
   renderSharedUsers();
   renderContributors();
   renderBudgetEstimate();
   syncOutingTitleStyle();
+  updateAutosaveStatus("idle");
 }
 
 function openShareDialog() {
@@ -732,25 +966,83 @@ function renderPlaybook() {
 }
 
 function workspaceCard(place, index) {
+  const canMoveUp = index > 0;
+  const canMoveDown = index < workspacePlaces.length - 1;
+
   return `
     <article class="workspace-place-card" data-workspace-place-id="${escapeHtml(place.id)}">
       <div class="workspace-place-order">${index + 1}</div>
-      <div>
-        <h3>${escapeHtml(place.name)}</h3>
-        <p>${escapeHtml(place.neighborhood)} | ${escapeHtml(place.timeWindow)}</p>
+      <img class="workspace-place-image" src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <div class="workspace-place-body">
+        <div class="workspace-place-heading">
+          <h3>${escapeHtml(place.name)}</h3>
+          <span>${escapeHtml(place.price)}</span>
+        </div>
+        <p>${escapeHtml(place.neighborhood)}</p>
+        <div class="workspace-place-meta">
+          <span>${escapeHtml(place.category)}</span>
+          <span>${escapeHtml(place.timeWindow)}</span>
+        </div>
       </div>
-      <span>${escapeHtml(place.price)}</span>
-      <button type="button" data-remove-workspace-place="${escapeHtml(place.id)}" aria-label="Remove ${escapeHtml(place.name)}">x</button>
+      <div class="workspace-actions">
+        <button class="workspace-move-button" type="button" data-move-workspace-place="${escapeHtml(place.id)}" data-direction="-1" aria-label="Move ${escapeHtml(place.name)} earlier" ${canMoveUp ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"></path></svg>
+        </button>
+        <button class="workspace-move-button" type="button" data-move-workspace-place="${escapeHtml(place.id)}" data-direction="1" aria-label="Move ${escapeHtml(place.name)} later" ${canMoveDown ? "" : "disabled"}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+        </button>
+        <button class="workspace-remove-button" type="button" data-remove-workspace-place="${escapeHtml(place.id)}" aria-label="Remove ${escapeHtml(place.name)}">x</button>
+      </div>
     </article>
+  `;
+}
+
+function workspaceBudgetLabel() {
+  if (!workspacePlaces.length) return "$0";
+
+  const [lowTotal, highTotal] = workspacePlaces.reduce((totals, place) => {
+    const [low, high] = priceRangeForPlace(place);
+    return [totals[0] + low, totals[1] + high];
+  }, [0, 0]);
+
+  return `$${lowTotal} - $${highTotal}`;
+}
+
+function workspaceAreaLabel() {
+  const neighborhoods = [...new Set(workspacePlaces.map((place) => place.neighborhood).filter(Boolean))];
+  if (!neighborhoods.length) return "Chicago";
+  if (neighborhoods.length === 1) return neighborhoods[0];
+  return `${neighborhoods.length} areas`;
+}
+
+function workspaceSummary() {
+  return `
+    <div class="workspace-summary" aria-label="Outing summary">
+      <div class="workspace-stat">
+        <span>Stops</span>
+        <strong>${workspacePlaces.length}</strong>
+      </div>
+      <div class="workspace-stat">
+        <span>Area</span>
+        <strong>${escapeHtml(workspaceAreaLabel())}</strong>
+      </div>
+      <div class="workspace-stat">
+        <span>Budget</span>
+        <strong>${escapeHtml(workspaceBudgetLabel())}</strong>
+      </div>
+    </div>
   `;
 }
 
 function renderWorkspace() {
   if (!workspacePlaces.length) {
     canvasDropZone.innerHTML = `
-      <div class="workspace-empty-state">
-        <strong>Drop places here</strong>
-        <span>Drag cards from Collections Playbook into this workspace.</span>
+      <div class="workspace-shell is-empty">
+        ${workspaceSummary()}
+        <div class="workspace-empty-state">
+          <strong>No stops yet</strong>
+          <span>Drop a saved place here to start the route.</span>
+        </div>
       </div>
     `;
     skeletons?.markLoaded(canvasDropZone);
@@ -758,8 +1050,11 @@ function renderWorkspace() {
   }
 
   canvasDropZone.innerHTML = `
-    <div class="workspace-list">
-      ${workspacePlaces.map(workspaceCard).join("")}
+    <div class="workspace-shell">
+      ${workspaceSummary()}
+      <div class="workspace-list">
+        ${workspacePlaces.map(workspaceCard).join("")}
+      </div>
     </div>
   `;
   skeletons?.markLoaded(canvasDropZone);
@@ -775,7 +1070,7 @@ function addPlaceToWorkspace(placeId, shouldRecordHistory = true) {
   saveWorkspacePlaces();
   renderWorkspace();
   renderBudgetEstimate();
-  saveCurrentOuting();
+  queueCurrentOutingSave();
 }
 
 function removePlaceFromWorkspace(placeId) {
@@ -786,7 +1081,24 @@ function removePlaceFromWorkspace(placeId) {
   saveWorkspacePlaces();
   renderWorkspace();
   renderBudgetEstimate();
-  saveCurrentOuting();
+  queueCurrentOutingSave();
+}
+
+function moveWorkspacePlace(placeId, direction) {
+  const fromIndex = workspacePlaces.findIndex((place) => place.id === placeId);
+  const toIndex = fromIndex + Number(direction);
+
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= workspacePlaces.length) return;
+
+  pushUndoState();
+  const nextPlaces = [...workspacePlaces];
+  const [movedPlace] = nextPlaces.splice(fromIndex, 1);
+  nextPlaces.splice(toIndex, 0, movedPlace);
+  workspacePlaces = nextPlaces;
+  saveWorkspacePlaces();
+  renderWorkspace();
+  renderBudgetEstimate();
+  queueCurrentOutingSave();
 }
 
 function priceRangeForPlace(place) {
@@ -1117,6 +1429,7 @@ outingDateInput.addEventListener("change", () => {
 
   renderPlaybook();
   renderPlaybookMap();
+  queueCurrentOutingSave();
 });
 
 outingDateInput.addEventListener("focus", () => {
@@ -1132,6 +1445,8 @@ timeframeSelect.addEventListener("change", () => {
     pushUndoState(timeframeEditSnapshot);
     timeframeEditSnapshot = null;
   }
+
+  queueCurrentOutingSave();
 });
 
 fileMenuBtn.addEventListener("click", (event) => {
@@ -1248,6 +1563,12 @@ canvasDropZone.addEventListener("drop", (event) => {
 });
 
 canvasDropZone.addEventListener("click", (event) => {
+  const moveButton = event.target.closest("button[data-move-workspace-place]");
+  if (moveButton) {
+    moveWorkspacePlace(moveButton.dataset.moveWorkspacePlace, moveButton.dataset.direction);
+    return;
+  }
+
   const removeButton = event.target.closest("button[data-remove-workspace-place]");
   if (!removeButton) return;
 
@@ -1337,9 +1658,13 @@ outingTitleInput.addEventListener("focus", () => {
 
 outingTitleInput.addEventListener("input", () => {
   syncOutingTitleStyle();
+  queueCurrentOutingSave();
 });
 
-outingTitleInput.addEventListener("blur", restoreUntitledOuting);
+outingTitleInput.addEventListener("blur", () => {
+  restoreUntitledOuting();
+  queueCurrentOutingSave();
+});
 
 outingTitleInput.addEventListener("change", () => {
   if (!titleEditSnapshot) return;
@@ -1347,9 +1672,12 @@ outingTitleInput.addEventListener("change", () => {
     pushUndoState(titleEditSnapshot);
   }
   titleEditSnapshot = null;
+  queueCurrentOutingSave();
 });
 
 window.addEventListener("storage", (event) => {
+  if (isInitialCreationLoad) return;
+
   if (event.key === playbookStorageKey) {
     playbookPlaces = loadPlaybookPlaces();
     renderPlaybook();
@@ -1371,6 +1699,8 @@ window.addEventListener("storage", (event) => {
 });
 
 window.addEventListener("pageshow", () => {
+  if (isInitialCreationLoad) return;
+
   playbookPlaces = loadPlaybookPlaces();
   workspacePlaces = loadWorkspacePlaces();
   contributors = loadContributors();
@@ -1382,7 +1712,17 @@ window.addEventListener("pageshow", () => {
   renderBudgetEstimate();
 });
 
+window.addEventListener("pagehide", () => {
+  saveCurrentOuting();
+});
+
 async function renderCreationPage() {
+  skeletons?.clearCreationToolbar?.({
+    title: outingTitleInput,
+    status: autosaveStatus,
+    date: outingDateInput,
+    timeframe: timeframeSelect
+  });
   renderPlaybook();
   renderWorkspace();
   renderPlaybookMap();
@@ -1398,10 +1738,18 @@ async function initializeCreationPage() {
   if (!skeletons) {
     await loadPlacesFromApi().catch(console.error);
     await loadPlaybookPlacesFromApi().catch(console.error);
+    loadSelectedOuting();
+    isInitialCreationLoad = false;
     renderCreationPage();
     return;
   }
 
+  skeletons.showCreationToolbar?.({
+    title: outingTitleInput,
+    status: autosaveStatus,
+    date: outingDateInput,
+    timeframe: timeframeSelect
+  });
   skeletons.showCreationPlaybook(collectionsList, 3);
   skeletons.showWorkspace(canvasDropZone);
   skeletons.showMap(outingMapPreview);
@@ -1409,6 +1757,8 @@ async function initializeCreationPage() {
   skeletons.showBudget(budgetCard);
   await loadPlacesFromApi().catch(console.error);
   await loadPlaybookPlacesFromApi().catch(console.error);
+  loadSelectedOuting();
+  isInitialCreationLoad = false;
   renderCreationPage();
 }
 

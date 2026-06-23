@@ -7,6 +7,8 @@ const router = express.Router();
 router.use(authMiddleware);
 router.post("/", outingController.create);
 router.get("/", outingController.index);
+router.patch("/:outingId", outingController.update);
+router.delete("/:outingId", outingController.destroy);
 router.post("/:outingId/contributors", outingController.addContributor);
 router.patch("/:outingId/contributors/:userId", outingController.updateContributor);
 router.delete("/:outingId/contributors/:userId", outingController.deleteContributor);

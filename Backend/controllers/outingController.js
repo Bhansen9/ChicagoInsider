@@ -1,8 +1,10 @@
 const {
   addOutingContributor,
   createOuting,
+  deleteOuting,
   deleteOutingContributor,
   listOutings,
+  updateOuting,
   updateOutingContributor
 } = require("../services/userDataService");
 
@@ -18,6 +20,28 @@ async function create(req, res, next) {
 async function index(req, res, next) {
   try {
     res.json({ outings: await listOutings(req.user.id, req.supabase) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function update(req, res, next) {
+  try {
+    const outing = await updateOuting(
+      req.user.id,
+      req.params.outingId,
+      req.body || {},
+      req.supabase
+    );
+    res.json({ outing });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function destroy(req, res, next) {
+  try {
+    res.json(await deleteOuting(req.user.id, req.params.outingId, req.supabase));
   } catch (error) {
     next(error);
   }
@@ -69,6 +93,8 @@ module.exports = {
   addContributor,
   create,
   deleteContributor,
+  destroy,
   index,
+  update,
   updateContributor
 };

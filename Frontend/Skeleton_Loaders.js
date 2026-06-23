@@ -121,6 +121,36 @@
     element.setAttribute("aria-busy", "true");
   }
 
+  function showField(element) {
+    if (!element) return;
+    element.classList.add("skeleton-field");
+    element.setAttribute("aria-busy", "true");
+  }
+
+  function clearField(element) {
+    if (!element) return;
+    element.classList.remove("skeleton-field");
+    element.removeAttribute("aria-busy");
+  }
+
+  function showCreationToolbar(elements = {}) {
+    [
+      elements.title,
+      elements.status,
+      elements.date,
+      elements.timeframe
+    ].forEach(showField);
+  }
+
+  function clearCreationToolbar(elements = {}) {
+    [
+      elements.title,
+      elements.status,
+      elements.date,
+      elements.timeframe
+    ].forEach(clearField);
+  }
+
   function clearStat(element) {
     if (!element) return;
     element.classList.remove("skeleton-stat-number");
@@ -189,18 +219,39 @@
 
   function showWorkspace(element) {
     render(element, `
-      <div class="workspace-list" aria-hidden="true">
-        ${repeat(4, () => `
-          <article class="workspace-place-card skeleton-card">
-            <span class="skeleton-circle" style="width: 30px; height: 30px;"></span>
-            <div>
-              ${line("72%", "is-title")}
-              ${line("58%", "is-compact")}
+      <div class="workspace-shell skeleton-workspace-shell" aria-hidden="true">
+        <div class="workspace-summary">
+          ${repeat(3, () => `
+            <div class="workspace-stat skeleton-card">
+              ${line("46px", "is-compact")}
+              ${line("64%", "is-title")}
             </div>
-            ${line("36px", "is-compact")}
-            ${line("24px", "is-compact")}
+          `)}
+        </div>
+        <div class="workspace-list">
+          ${repeat(3, () => `
+          <article class="workspace-place-card skeleton-card">
+            <span class="skeleton-circle" style="width: 32px; height: 32px;"></span>
+            ${block("skeleton-workspace-image")}
+            <div class="workspace-place-body">
+              <div class="workspace-place-heading">
+                ${line("48%", "is-title")}
+                <span class="skeleton-pill" style="width: 48px;"></span>
+              </div>
+              ${line("34%", "is-compact")}
+              <div class="skeleton-row skeleton-workspace-tags">
+                <span class="skeleton-pill" style="width: 64px;"></span>
+                <span class="skeleton-pill" style="width: 92px;"></span>
+              </div>
+            </div>
+            <div class="workspace-actions">
+              ${line("28px", "is-compact")}
+              ${line("28px", "is-compact")}
+              ${line("28px", "is-compact")}
+            </div>
           </article>
-        `)}
+          `)}
+        </div>
       </div>
     `);
   }
@@ -245,6 +296,7 @@
 
   window.ChicagoInsiderSkeletons = {
     clearStat,
+    clearCreationToolbar,
     markLoaded,
     setBusy,
     showActivityItems,
@@ -252,6 +304,7 @@
     showCollectionCards,
     showContributors,
     showCreationPlaybook,
+    showCreationToolbar,
     showHomePlaceCards,
     showMap,
     showOutingCards,

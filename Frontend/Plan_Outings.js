@@ -15,6 +15,9 @@ const outingFilterMenu = document.querySelector("#outingFilterMenu");
 const skeletons = window.ChicagoInsiderSkeletons;
 const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
+const savedOutingsStorageKey = "chicagoInsider.savedOutings";
+const selectedOutingStorageKey = "chicagoInsider.selectedOuting";
+const favoriteOutingsStorageKey = "chicagoInsider.favoriteOutings";
 const API_BASE_URL = window.ChicagoInsiderApiBaseUrl ?? "http://localhost:3000";
 
 function resolveAssetUrl(url) {
@@ -29,6 +32,7 @@ let activeCollectionFilter = "all";
 let activeOutingFilter = "all";
 let playbookPlaces = loadPlaybookPlaces();
 let draggedPlaceId = "";
+let favoriteOutingIds = loadFavoriteOutingIds();
 
 function loadPlaybookPlaces() {
   try {
@@ -55,6 +59,40 @@ function updatePlaybookPlaces(nextPlaces) {
   playbookPlaces = nextPlaces;
   savePlaybookPlaces();
   renderPlaybook();
+}
+
+function loadLocalOutingSnapshots() {
+  try {
+    const savedOutings = JSON.parse(localStorage.getItem(savedOutingsStorageKey) || "[]");
+    return Array.isArray(savedOutings) ? savedOutings : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function loadFavoriteOutingIds() {
+  try {
+    const value = JSON.parse(localStorage.getItem(favoriteOutingsStorageKey) || "[]");
+    return new Set(Array.isArray(value) ? value.map(String) : []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+function saveFavoriteOutingIds() {
+  try {
+    localStorage.setItem(favoriteOutingsStorageKey, JSON.stringify([...favoriteOutingIds]));
+  } catch (error) {
+    // localStorage can be unavailable in some private browsing or restricted contexts.
+  }
+}
+
+function writeJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // localStorage can be unavailable in some private browsing or restricted contexts.
+  }
 }
 
 function playbookServerPlaceId(place = {}) {
@@ -339,13 +377,119 @@ function normalizeApiOuting(outing = {}) {
 
   return {
     id: outing.id,
+    serverId: outing.id,
+    clientId: "",
     title: outing.title || "Untitled Outing",
     filter: outingFilterFor(outing),
     location: normalizedPlaces[0]?.neighborhood || "Chicago",
     duration: `${normalizedPlaces.length} places | ${(outing.outing_contributors || []).length} contributors`,
     time: outing.starts_at ? new Date(outing.starts_at).toLocaleString() : "No date set",
-    images
+    date: outing.starts_at ? outing.starts_at.slice(0, 10) : "",
+    timeframe: String(outing.description || "").replace(/^TimeFrame:\s*/i, "") || "Evening: 5 PM - 9 PM",
+    workspacePlaceIds: normalizedPlaces.map((place) => place.id),
+    workspacePlaces: normalizedPlaces,
+    contributors: (outing.outing_contributors || []).map((contributor) => ({
+      username: contributor.user?.username || contributor.user_id || "guest",
+      role: contributor.permission || "read"
+    })),
+    images,
+    savedAt: outing.updated_at || outing.created_at || new Date().toISOString()
   };
+}
+
+function localOutingPlaceLookup(localOuting = {}) {
+  const byId = new Map();
+  const rememberPlace = (place = {}) => {
+    [
+      place.id,
+      place.placeId,
+      place.supabasePlaceId,
+      place.googlePlaceId,
+      place.google_place_id
+    ].filter(Boolean).forEach((id) => byId.set(String(id), place));
+  };
+
+  places.forEach(rememberPlace);
+  playbookPlaces.forEach(rememberPlace);
+  (localOuting.playbookPlaces || []).forEach(rememberPlace);
+  (localOuting.workspacePlaces || []).forEach(rememberPlace);
+  return byId;
+}
+
+function normalizeLocalOuting(localOuting = {}) {
+  const placeIds = Array.isArray(localOuting.workspacePlaceIds)
+    ? localOuting.workspacePlaceIds
+    : localOuting.playbookPlaceIds || [];
+  const placeById = localOutingPlaceLookup(localOuting);
+  const outingPlaces = placeIds
+    .map((placeId) => placeById.get(String(placeId)))
+    .filter(Boolean);
+  const images = outingPlaces.length
+    ? outingPlaces.slice(0, 3).map((place) => resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png"))
+    : [resolveAssetUrl("assets/pixel-chicago-hero.png")];
+  const contributorCount = Array.isArray(localOuting.contributors) ? localOuting.contributors.length : 0;
+  const dateValue = localOuting.date || localOuting.starts_at || localOuting.startsAt;
+  const savedAt = localOuting.savedAt || new Date().toISOString();
+
+  return {
+    id: localOuting.serverId || localOuting.id || localOuting.clientId || `local-${savedAt}`,
+    clientId: localOuting.clientId,
+    serverId: localOuting.serverId,
+    title: localOuting.title || "Untitled Outing",
+    filter: outingFilterFor(localOuting),
+    location: outingPlaces[0]?.neighborhood || "Chicago",
+    duration: `${placeIds.length || outingPlaces.length} places | ${contributorCount} contributors`,
+    time: dateValue ? new Date(dateValue).toLocaleString() : "No date set",
+    date: localOuting.date || "",
+    timeframe: localOuting.timeframe || "Evening: 5 PM - 9 PM",
+    playbookPlaceIds: localOuting.playbookPlaceIds || [],
+    workspacePlaceIds: localOuting.workspacePlaceIds || placeIds,
+    playbookPlaces: localOuting.playbookPlaces || [],
+    workspacePlaces: localOuting.workspacePlaces || outingPlaces,
+    contributors: localOuting.contributors || [],
+    images,
+    savedAt
+  };
+}
+
+function mergeOutings(apiOutings, localOutings) {
+  const merged = [];
+  const seen = new Set();
+  const keysForOuting = (outing = {}) => [
+    outing.serverId,
+    outing.clientId,
+    outing.id
+  ].filter(Boolean).map(String);
+  const isNewerOrSame = (candidate = {}, existing = {}) => (
+    new Date(candidate.savedAt || 0).getTime() >= new Date(existing.savedAt || 0).getTime()
+  );
+
+  apiOutings.forEach((outing) => {
+    merged.push(outing);
+    keysForOuting(outing).forEach((key) => seen.add(key));
+  });
+
+  localOutings.forEach((outing) => {
+    const existingIndex = merged.findIndex((mergedOuting) => (
+      keysForOuting(outing).some((key) => keysForOuting(mergedOuting).includes(key))
+    ));
+
+    if (existingIndex >= 0) {
+      if (isNewerOrSame(outing, merged[existingIndex])) {
+        merged[existingIndex] = {
+          ...merged[existingIndex],
+          ...outing
+        };
+      }
+      keysForOuting(outing).forEach((key) => seen.add(key));
+      return;
+    }
+
+    merged.push(outing);
+    keysForOuting(outing).forEach((key) => seen.add(key));
+  });
+
+  return merged;
 }
 
 async function loadSavedPlacesFromApi() {
@@ -419,40 +563,65 @@ async function syncLocalPlaybookPlaces(nextPlaces) {
 }
 
 async function loadOutingsFromApi() {
-  const apiOutings = await auth.getOutings();
-  outings = apiOutings.filter(isOwnedOuting).map(normalizeApiOuting);
+  const localOutings = loadLocalOutingSnapshots()
+    .sort((a, b) => Date.parse(b.savedAt || 0) - Date.parse(a.savedAt || 0))
+    .map(normalizeLocalOuting);
+
+  try {
+    const apiOutings = await auth.getOutings();
+    outings = mergeOutings(
+      localOutings,
+      apiOutings.filter(isOwnedOuting).map(normalizeApiOuting)
+    );
+  } catch (error) {
+    console.error(error);
+    outings = localOutings;
+  }
 }
 
 function outingCard(outing) {
   const images = outing.images.map((image, index) => (
     `<img src="${escapeHtml(image)}" alt="${escapeHtml(outing.title)} stop ${index + 1}" />`
   )).join("");
+  const isFavorite = favoriteOutingIds.has(String(outing.id));
 
   return `
-    <article class="outing-card" data-outing-id="${escapeHtml(outing.id)}">
-      <div class="outing-actions" aria-hidden="true">
+    <article class="outing-card" data-outing-id="${escapeHtml(outing.id)}" role="button" tabindex="0" aria-label="Open ${escapeHtml(outing.title)}">
+      <div class="outing-actions">
         <span class="outing-left-icons">
-          <svg class="outing-icon upload-icon" viewBox="0 0 24 24" focusable="false">
-            <path d="M12 3v12"></path>
-            <path d="M7 8l5-5 5 5"></path>
-            <path d="M5 13v6h14v-6"></path>
-          </svg>
-          <svg class="outing-icon star-icon" viewBox="0 0 24 24" focusable="false">
-            <path d="M12 3.5l2.65 5.35 5.9.86-4.27 4.16 1.01 5.87L12 16.96 6.71 19.74l1.01-5.87-4.27-4.16 5.9-.86L12 3.5z"></path>
-          </svg>
+          <button class="outing-action-button" type="button" data-outing-action="share" aria-label="Share ${escapeHtml(outing.title)}">
+            <svg class="outing-icon upload-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M12 3v12"></path>
+              <path d="M7 8l5-5 5 5"></path>
+              <path d="M5 13v6h14v-6"></path>
+            </svg>
+          </button>
+          <button class="outing-action-button favorite-button ${isFavorite ? "is-favorite" : ""}" type="button" data-outing-action="favorite" aria-label="${isFavorite ? "Unstar" : "Star"} ${escapeHtml(outing.title)}" aria-pressed="${isFavorite}">
+            <svg class="outing-icon star-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M12 3.5l2.65 5.35 5.9.86-4.27 4.16 1.01 5.87L12 16.96 6.71 19.74l1.01-5.87-4.27-4.16 5.9-.86L12 3.5z"></path>
+            </svg>
+          </button>
         </span>
-        <svg class="outing-icon more-icon" viewBox="0 0 24 24" focusable="false">
-          <circle cx="12" cy="12" r="8.5"></circle>
-          <circle class="more-dot" cx="8.5" cy="12" r="1"></circle>
-          <circle class="more-dot" cx="12" cy="12" r="1"></circle>
-          <circle class="more-dot" cx="15.5" cy="12" r="1"></circle>
-        </svg>
+        <button class="outing-action-button" type="button" data-outing-action="more" aria-label="More options for ${escapeHtml(outing.title)}">
+          <svg class="outing-icon more-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5"></circle>
+            <circle class="more-dot" cx="8.5" cy="12" r="1"></circle>
+            <circle class="more-dot" cx="12" cy="12" r="1"></circle>
+            <circle class="more-dot" cx="15.5" cy="12" r="1"></circle>
+          </svg>
+        </button>
       </div>
       <h4>${escapeHtml(outing.title)}</h4>
       <p class="location">Location: ${escapeHtml(outing.location)}</p>
       <p class="location">${escapeHtml(outing.duration)}</p>
       <div class="outing-images">${images}</div>
       <p class="time">${escapeHtml(outing.time)}</p>
+      <div class="outing-card-menu" data-outing-menu="${escapeHtml(outing.id)}">
+        <button type="button" data-outing-action="open">Open</button>
+        <button type="button" data-outing-action="share">Share</button>
+        <button type="button" data-outing-action="duplicate">Duplicate</button>
+        <button class="danger-action" type="button" data-outing-action="delete">Delete</button>
+      </div>
     </article>
   `;
 }
@@ -508,7 +677,7 @@ function renderOutings() {
     };
 
   outingGrid.innerHTML = filteredOutings.length
-    ? filteredOutings.slice(0, 3).map(outingCard).join("")
+    ? filteredOutings.map(outingCard).join("")
     : emptyBoardState(emptyState);
   outingGrid.classList.toggle("has-empty-state", filteredOutings.length === 0);
   skeletons?.markLoaded(outingGrid);
@@ -522,6 +691,148 @@ function emptyBoardState({ title, body, href, action }) {
       <a href="${escapeHtml(href)}">${escapeHtml(action)}</a>
     </div>
   `;
+}
+
+function outingById(outingId) {
+  return outings.find((outing) => String(outing.id) === String(outingId));
+}
+
+function outingEditSnapshot(outing = {}) {
+  return {
+    id: outing.id,
+    clientId: outing.clientId || outing.id,
+    serverId: outing.serverId || "",
+    title: outing.title || "Untitled Outing",
+    date: outing.date || "",
+    timeframe: outing.timeframe || "Evening: 5 PM - 9 PM",
+    playbookPlaceIds: outing.playbookPlaceIds || [],
+    workspacePlaceIds: outing.workspacePlaceIds || [],
+    playbookPlaces: outing.playbookPlaces || [],
+    workspacePlaces: outing.workspacePlaces || [],
+    contributors: outing.contributors || [],
+    savedAt: outing.savedAt || new Date().toISOString()
+  };
+}
+
+function openOuting(outingId) {
+  const outing = outingById(outingId);
+  if (!outing) return;
+
+  writeJson(selectedOutingStorageKey, outingEditSnapshot(outing));
+  window.location.href = `Outings_Creations_Page.html?outingId=${encodeURIComponent(outing.id)}`;
+}
+
+function outingShareUrl(outing = {}) {
+  const url = new URL("Outings_Creations_Page.html", window.location.href);
+  url.searchParams.set("outingId", outing.id);
+  return url.href;
+}
+
+async function shareOuting(outingId) {
+  const outing = outingById(outingId);
+  if (!outing) return;
+
+  const shareData = {
+    title: outing.title || "ChicagoInsider outing",
+    text: `${outing.title || "ChicagoInsider outing"} - ${outing.duration || ""}`.trim(),
+    url: outingShareUrl(outing)
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
+    }
+
+    await navigator.clipboard.writeText(shareData.url);
+    window.alert("Outing link copied.");
+  } catch (error) {
+    if (error?.name !== "AbortError") console.error(error);
+  }
+}
+
+function toggleFavoriteOuting(outingId) {
+  const key = String(outingId || "");
+  if (!key) return;
+
+  if (favoriteOutingIds.has(key)) {
+    favoriteOutingIds.delete(key);
+  } else {
+    favoriteOutingIds.add(key);
+  }
+
+  saveFavoriteOutingIds();
+  renderOutings();
+}
+
+function duplicateOuting(outingId) {
+  const outing = outingById(outingId);
+  if (!outing) return;
+  const duplicateId = `outing-${Date.now()}`;
+
+  const duplicate = {
+    ...outingEditSnapshot(outing),
+    id: duplicateId,
+    clientId: duplicateId,
+    serverId: "",
+    title: `${outing.title || "Untitled Outing"} Copy`,
+    savedAt: new Date().toISOString()
+  };
+  const savedOutings = loadLocalOutingSnapshots();
+  writeJson(savedOutingsStorageKey, [duplicate, ...savedOutings]);
+  loadOutingsFromApi().finally(renderOutings);
+}
+
+function removeLocalOuting(outing = {}) {
+  const keys = new Set([
+    outing.id,
+    outing.clientId,
+    outing.serverId
+  ].filter(Boolean).map(String));
+  const savedOutings = loadLocalOutingSnapshots().filter((savedOuting) => ![
+    savedOuting.id,
+    savedOuting.clientId,
+    savedOuting.serverId
+  ].filter(Boolean).some((key) => keys.has(String(key))));
+
+  writeJson(savedOutingsStorageKey, savedOutings);
+  keys.forEach((key) => favoriteOutingIds.delete(key));
+  saveFavoriteOutingIds();
+}
+
+async function deleteOutingCard(outingId) {
+  const outing = outingById(outingId);
+  if (!outing) return;
+
+  closeOutingMenus();
+  removeLocalOuting(outing);
+  outings = outings.filter((item) => String(item.id) !== String(outing.id));
+  renderOutings();
+
+  if (!outing.serverId || !auth.deleteOuting) return;
+
+  try {
+    await auth.deleteOuting(outing.serverId);
+  } catch (error) {
+    console.error(error);
+    window.alert("Could not delete this outing from your account. Refresh to check its current status.");
+  }
+}
+
+function closeOutingMenus() {
+  document.querySelectorAll(".outing-card-menu.open").forEach((menu) => {
+    menu.classList.remove("open");
+  });
+}
+
+function toggleOutingMenu(outingId) {
+  const menu = [...outingGrid.querySelectorAll(".outing-card-menu")]
+    .find((item) => item.dataset.outingMenu === String(outingId));
+  if (!menu) return;
+
+  const wasOpen = menu.classList.contains("open");
+  closeOutingMenus();
+  menu.classList.toggle("open", !wasOpen);
 }
 
 function renderPlaybook() {
@@ -571,10 +882,42 @@ function closeMenus() {
   playbookFilterMenu.classList.remove("open");
   collectionFilterMenu.classList.remove("open");
   outingFilterMenu.classList.remove("open");
+  closeOutingMenus();
 }
 
 collectionSearch.addEventListener("input", renderCollections);
 outingSearch.addEventListener("input", renderOutings);
+
+outingGrid.addEventListener("click", (event) => {
+  const card = event.target.closest(".outing-card[data-outing-id]");
+  if (!card) return;
+
+  const actionButton = event.target.closest("[data-outing-action]");
+  if (actionButton) {
+    event.stopPropagation();
+    const action = actionButton.dataset.outingAction;
+
+    if (action !== "more") closeOutingMenus();
+    if (action === "open") openOuting(card.dataset.outingId);
+    if (action === "share") shareOuting(card.dataset.outingId);
+    if (action === "favorite") toggleFavoriteOuting(card.dataset.outingId);
+    if (action === "duplicate") duplicateOuting(card.dataset.outingId);
+    if (action === "delete") deleteOutingCard(card.dataset.outingId);
+    if (action === "more") toggleOutingMenu(card.dataset.outingId);
+    return;
+  }
+
+  openOuting(card.dataset.outingId);
+});
+
+outingGrid.addEventListener("keydown", (event) => {
+  if (!["Enter", " "].includes(event.key)) return;
+  const card = event.target.closest(".outing-card[data-outing-id]");
+  if (!card || event.target.closest("[data-outing-action]")) return;
+
+  event.preventDefault();
+  openOuting(card.dataset.outingId);
+});
 
 playbookFilterBtn.addEventListener("click", (event) => {
   event.stopPropagation();

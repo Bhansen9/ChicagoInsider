@@ -311,6 +311,59 @@ async function createOuting(userId, body, supabase) {
   return getOuting(outing.id, supabase);
 }
 
+async function replaceOutingPlaces(userId, outingId, places, supabase) {
+  const resolvedPlaces = [];
+  for (let index = 0; index < places.length; index += 1) {
+    resolvedPlaces.push(await ensurePlace(places[index]));
+  }
+
+  const { error: deleteError } = await supabase
+    .from("outing_places")
+    .delete()
+    .eq("outing_id", outingId);
+
+  if (deleteError) throw new ApiError(deleteError.message, 400, "OUTING_PLACES_REPLACE_FAILED");
+
+  for (let index = 0; index < resolvedPlaces.length; index += 1) {
+    await addPlaceToOuting(userId, outingId, { place: resolvedPlaces[index], position: index }, supabase);
+  }
+}
+
+async function updateOuting(userId, outingId, body, supabase) {
+  const startsAt = cleanTimestamp(body.starts_at || body.startsAt || body.date);
+  const endsAt = cleanTimestamp(body.ends_at || body.endsAt);
+
+  const { error } = await supabase
+    .from("outings")
+    .update({
+      title: cleanText(body.title, "Untitled Outing"),
+      description: cleanNullableText(body.description, 800),
+      starts_at: startsAt,
+      ends_at: endsAt,
+      status: cleanOutingStatus(body.status),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", outingId);
+
+  if (error) throw new ApiError(error.message, 400, "OUTING_UPDATE_FAILED");
+
+  if (Array.isArray(body.places)) {
+    await replaceOutingPlaces(userId, outingId, body.places, supabase);
+  }
+
+  return getOuting(outingId, supabase);
+}
+
+async function deleteOuting(userId, outingId, supabase) {
+  const { error } = await supabase
+    .from("outings")
+    .delete()
+    .eq("id", outingId);
+
+  if (error) throw new ApiError(error.message, 400, "OUTING_DELETE_FAILED");
+  return { ok: true };
+}
+
 async function listOutings(userId, supabase) {
   const { data, error } = await supabase
     .from("outings")
@@ -457,6 +510,7 @@ module.exports = {
   createOuting,
   createPlaybook,
   createSavedSpot,
+  deleteOuting,
   deleteOutingContributor,
   deletePlaceFromDefaultPlaybook,
   deletePlaceFromPlaybook,
@@ -466,5 +520,6 @@ module.exports = {
   listPlaybooks,
   listSavedSpots,
   attachContributorProfiles,
+  updateOuting,
   updateOutingContributor
 };

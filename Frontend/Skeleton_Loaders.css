@@ -125,6 +125,21 @@
   margin: 0 auto;
 }
 
+.skeleton-field {
+  color: transparent !important;
+  caret-color: transparent;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.78), transparent),
+    var(--skeleton-base) !important;
+  background-size: 220% 100%, 100% 100% !important;
+  border-radius: 999px;
+  animation: skeletonFieldShimmer 1.25s ease-in-out infinite;
+}
+
+.skeleton-field::placeholder {
+  color: transparent;
+}
+
 .skeleton-cluster {
   display: grid;
   gap: 8px;
@@ -162,8 +177,35 @@
 .saved-item.skeleton-card,
 .activity-item.skeleton-card,
 .contributor-row.skeleton-card,
+.workspace-stat.skeleton-card,
 .workspace-place-card.skeleton-card {
   background: #ffffff;
+}
+
+.skeleton-workspace-shell {
+  min-height: 616px;
+}
+
+.skeleton-workspace-image {
+  width: 118px;
+  height: 76px;
+  margin: 0;
+}
+
+.skeleton-workspace-tags {
+  justify-content: start;
+  margin-top: 9px;
+}
+
+.workspace-place-card.skeleton-card .workspace-actions .skeleton-line {
+  width: 28px !important;
+  height: 28px;
+  margin: 0;
+  border-radius: 6px;
+}
+
+.workspace-stat.skeleton-card .skeleton-line {
+  margin: 0;
 }
 
 .outing-card.skeleton-card .outing-images {
@@ -186,6 +228,12 @@
   }
 }
 
+@keyframes skeletonFieldShimmer {
+  100% {
+    background-position: 220% 0, 0 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line::after,
   .skeleton-block::after,
@@ -194,6 +242,10 @@
   .skeleton-circle::after,
   .skeleton-chip::after,
   .skeleton-stat-number::after {
+    animation: none;
+  }
+
+  .skeleton-field {
     animation: none;
   }
 }
