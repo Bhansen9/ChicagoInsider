@@ -1,6 +1,10 @@
 const trendGrid = document.querySelector("#trendGrid");
 const savedTrendCount = document.querySelector("#savedTrendCount");
 const trendTabs = document.querySelectorAll(".trend-tab");
+const trendDetailPanel = document.querySelector("#trendDetailPanel");
+const trendDetailBackdrop = document.querySelector("#trendDetailBackdrop");
+const trendDetailContent = document.querySelector("#trendDetailContent");
+const trendDetailCloseBtn = document.querySelector("#trendDetailCloseBtn");
 const skeletons = window.ChicagoInsiderSkeletons;
 const auth = window.ChicagoInsiderAuth;
 const playbookStorageKey = "chicagoInsider.playbookPlaces";
@@ -53,6 +57,8 @@ let trendingPlacesByFilter = {};
 let activeFilter = "all";
 let savedPlaceIds = loadSavedPlaceIds();
 let savedSpotByKey = new Map();
+let lastTrendDetailTrigger = null;
+let trendDetailCloseTimer;
 
 function loadSavedPlaceIds() {
   try {
@@ -185,6 +191,196 @@ function bestForText(place = {}) {
   return place.note || "Chicago plans";
 }
 
+function cleanExternalUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(url)) return `https://${url}`;
+  return "";
+}
+
+function normalizeTextList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function trendPillList(items) {
+  return normalizeTextList(items)
+    .map((item) => `<span class="trend-detail-pill">${escapeHtml(titleCase(item))}</span>`)
+    .join("");
+}
+
+function trendRatingText(place = {}) {
+  const rating = Number(place.rating || place.ratingAverage || place.rating_average);
+  const ratingCount = Number(place.userRatingCount || place.user_rating_count || place.ratingCount || place.rating_count);
+
+  if (place.heat) return place.heat;
+  if (!rating) return "Live Chicago pick";
+  if (ratingCount) return `${rating.toFixed(1)} from ${ratingCount.toLocaleString()} ratings`;
+  return `${rating.toFixed(1)} out of 5`;
+}
+
+function trendMapUrl(place = {}) {
+  const directMapUrl = cleanExternalUrl(place.googleMapsUri || place.google_maps_uri);
+  if (directMapUrl) return directMapUrl;
+
+  const query = [place.name, place.neighborhood, "Chicago"].filter(Boolean).join(" ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function trendDetailStat(label, value) {
+  if (!value) return "";
+
+  return `
+    <div class="trend-detail-stat">
+      <span>${escapeHtml(label)}</span>
+      <span>${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function findTrendingPlaceById(placeId) {
+  const key = String(placeId || "");
+  return allLoadedTrendingPlaces().find((place) => (
+    keysForDisplayPlace(place).some((placeKey) => String(placeKey) === key)
+  ));
+}
+
+function renderTrendDetail(place) {
+  if (!trendDetailContent) return;
+
+  const image = resolveAssetUrl(place.image || place.imageUrl || "assets/pixel-chicago-hero.png");
+  const reason = place.reason || place.description || "A Google Places result inside Chicago.";
+  const summary = place.description && place.description !== reason
+    ? place.description
+    : "A trending Chicago spot people are checking out this week.";
+  const bestFor = normalizeTextList(place.bestFor || place.best_for || bestForText(place));
+  const vibes = normalizeTextList(place.vibes || place.note);
+  const mapUrl = trendMapUrl(place);
+  const websiteUrl = cleanExternalUrl(place.websiteUri || place.website || place.website_url);
+  const reviewUrl = cleanExternalUrl(place.reviewUrl || place.review_url);
+  const isSaved = isPlaceSaved(place);
+
+  trendDetailContent.innerHTML = `
+    <div class="trend-detail-image-wrap">
+      <img
+        class="trend-detail-hero-image"
+        src="${escapeHtml(image)}"
+        alt="${escapeHtml(place.name)}"
+        onerror="this.onerror=null;this.src='assets/pixel-chicago-hero.png';"
+      />
+      <span class="rank-badge">#${escapeHtml(place.rank || "")}</span>
+    </div>
+    <div class="trend-detail-kicker">
+      <span>Trending #${escapeHtml(place.rank || "")}</span>
+      <span>${escapeHtml(place.category || "Chicago spot")}</span>
+      ${place.price ? `<span>${escapeHtml(place.price)}</span>` : ""}
+    </div>
+    <h2 id="trendDetailTitle">${escapeHtml(place.name)}</h2>
+    <p class="trend-detail-summary">${escapeHtml(summary)}</p>
+    <div class="trend-detail-stats">
+      ${trendDetailStat("Neighborhood", place.neighborhood || "Chicago")}
+      ${trendDetailStat("Price", place.price || "Varies")}
+      ${trendDetailStat("Momentum", trendRatingText(place))}
+      ${trendDetailStat("Rank", place.rank ? `#${place.rank} this week` : "Trending")}
+    </div>
+    <section class="trend-detail-section">
+      <h3>Why it is trending</h3>
+      <p class="trend-detail-copy">${escapeHtml(reason)}</p>
+    </section>
+    ${bestFor.length ? `
+      <section class="trend-detail-section">
+        <h3>Best for</h3>
+        <div class="trend-detail-pill-list">${trendPillList(bestFor)}</div>
+      </section>
+    ` : ""}
+    ${vibes.length ? `
+      <section class="trend-detail-section">
+        <h3>Vibes</h3>
+        <div class="trend-detail-pill-list">${trendPillList(vibes)}</div>
+      </section>
+    ` : ""}
+    <div class="trend-detail-actions">
+      <button
+        type="button"
+        class="trend-detail-save ${isSaved ? "is-saved" : ""}"
+        data-detail-place-id="${escapeHtml(place.id)}"
+      >
+        ${isSaved ? "Saved" : "Save Spot"}
+      </button>
+      <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener noreferrer">Open Map</a>
+      ${websiteUrl ? `<a class="secondary" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}
+      ${reviewUrl && reviewUrl !== mapUrl ? `<a class="secondary" href="${escapeHtml(reviewUrl)}" target="_blank" rel="noopener noreferrer">Reviews</a>` : ""}
+    </div>
+  `;
+}
+
+function openTrendDetail(placeId, triggerElement = null) {
+  const place = findTrendingPlaceById(placeId);
+  if (!place || !trendDetailPanel || !trendDetailContent) return;
+
+  window.clearTimeout(trendDetailCloseTimer);
+  lastTrendDetailTrigger = triggerElement || document.activeElement;
+  renderTrendDetail(place);
+  trendDetailBackdrop.hidden = false;
+  trendDetailPanel.setAttribute("aria-hidden", "false");
+  document.body.classList.add("trend-detail-open");
+
+  window.requestAnimationFrame(() => {
+    trendDetailBackdrop.classList.add("is-open");
+    trendDetailPanel.classList.add("is-open");
+    trendDetailCloseBtn?.focus({ preventScroll: true });
+  });
+}
+
+function closeTrendDetail({ restoreFocus = true } = {}) {
+  if (!trendDetailPanel) return;
+
+  window.clearTimeout(trendDetailCloseTimer);
+  trendDetailBackdrop?.classList.remove("is-open");
+  trendDetailPanel.classList.remove("is-open");
+  trendDetailPanel.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("trend-detail-open");
+
+  trendDetailCloseTimer = window.setTimeout(() => {
+    if (trendDetailBackdrop) trendDetailBackdrop.hidden = true;
+    if (restoreFocus && lastTrendDetailTrigger?.isConnected) {
+      lastTrendDetailTrigger.focus?.({ preventScroll: true });
+    }
+  }, 220);
+}
+
+async function toggleSavedTrendPlace(saveButton, placeId) {
+  const place = findTrendingPlaceById(placeId);
+  if (!place) return null;
+
+  saveButton.disabled = true;
+  const savedSpot = savedSpotForPlace(place);
+  saveButton.textContent = savedSpot ? "Removing..." : "Saving...";
+
+  try {
+    if (savedSpot) {
+      await auth.deleteSavedSpot(savedSpot.id);
+    } else {
+      await auth.saveSpot(place);
+    }
+    await loadSavedSpotsFromApi();
+    return place;
+  } catch (error) {
+    if (error.status !== 401) console.error(error);
+    return null;
+  } finally {
+    saveButton.disabled = false;
+    renderTrends();
+  }
+}
+
 function normalizeTrendingPlace(candidate, rank) {
   const place = candidate.place || {};
   const searchLabel = candidate.search?.label || "Chicago";
@@ -277,9 +473,9 @@ function renderTrendCard(place) {
   const bestFor = place.bestFor || (place.note ? place.note : "Chicago plans");
 
   return `
-    <article class="trend-card">
+    <article class="trend-card is-clickable" data-place-id="${escapeHtml(place.id)}" tabindex="0" aria-label="Open details for ${escapeHtml(place.name)}">
       <div class="trend-image-wrap">
-        <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" />
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(place.name)}" onerror="this.onerror=null;this.src='assets/pixel-chicago-hero.png';" />
         <span class="rank-badge">#${place.rank}</span>
       </div>
       <div class="trend-card-body">
@@ -368,26 +564,43 @@ trendTabs.forEach((tab) => {
 
 trendGrid.addEventListener("click", async (event) => {
   const saveButton = event.target.closest("button[data-place-id]");
+  if (saveButton) {
+    await toggleSavedTrendPlace(saveButton, saveButton.dataset.placeId);
+    return;
+  }
+
+  if (event.target.closest("a")) return;
+
+  const card = event.target.closest(".trend-card[data-place-id]");
+  if (!card || !trendGrid.contains(card)) return;
+  openTrendDetail(card.dataset.placeId, card);
+});
+
+trendGrid.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest("button, a, input, select, textarea")) return;
+
+  const card = event.target.closest(".trend-card[data-place-id]");
+  if (!card || !trendGrid.contains(card)) return;
+
+  event.preventDefault();
+  openTrendDetail(card.dataset.placeId, card);
+});
+
+trendDetailContent?.addEventListener("click", async (event) => {
+  const saveButton = event.target.closest("button[data-detail-place-id]");
   if (!saveButton) return;
 
-  const placeId = saveButton.dataset.placeId;
-  const place = allLoadedTrendingPlaces().find((item) => String(item.id) === String(placeId));
-  if (!place) return;
+  const place = await toggleSavedTrendPlace(saveButton, saveButton.dataset.detailPlaceId);
+  if (place) renderTrendDetail(place);
+});
 
-  saveButton.disabled = true;
-  try {
-    const savedSpot = savedSpotForPlace(place);
-    if (savedSpot) {
-      await auth.deleteSavedSpot(savedSpot.id);
-    } else {
-      await auth.saveSpot(place);
-    }
-    await loadSavedSpotsFromApi();
-  } catch (error) {
-    if (error.status !== 401) console.error(error);
-  } finally {
-    saveButton.disabled = false;
-    renderTrends();
+trendDetailCloseBtn?.addEventListener("click", () => closeTrendDetail());
+trendDetailBackdrop?.addEventListener("click", () => closeTrendDetail());
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && trendDetailPanel?.classList.contains("is-open")) {
+    closeTrendDetail();
   }
 });
 

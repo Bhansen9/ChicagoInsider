@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChicagoInsider</title>
-  <link rel="stylesheet" href="Styles.css?v=36" />
+  <link rel="stylesheet" href="Styles.css?v=41" />
   <link rel="stylesheet" href="Skeleton_Loaders.css?v=1" />
   <link rel="stylesheet" href="Auth.css?v=1" />
 </head>
@@ -53,15 +53,52 @@
 
       <div class="field">
         <label for="neighborhoodSelect">Neighborhood</label>
-        <select id="neighborhoodSelect" name="neighborhood">
-          <option value="">Any neighborhood</option>
-          <option>Downtown</option>
-          <option>Lincoln Park</option>
-          <option>Wicker Park</option>
-          <option>River North</option>
-          <option>West Loop</option>
-          <option>Lakeview</option>
-        </select>
+        <div class="select-shell">
+          <select id="neighborhoodSelect" name="neighborhood">
+            <option value="">Any neighborhood</option>
+            <optgroup label="Central">
+              <option>Downtown</option>
+              <option>The Loop</option>
+              <option>River North</option>
+              <option>Streeterville</option>
+              <option>Gold Coast</option>
+              <option>Old Town</option>
+              <option>South Loop</option>
+              <option>Museum Campus</option>
+            </optgroup>
+            <optgroup label="North Side">
+              <option>Lincoln Park</option>
+              <option>Lakeview</option>
+              <option>Wrigleyville</option>
+              <option>Roscoe Village</option>
+              <option>North Center</option>
+              <option>Ravenswood</option>
+              <option>Edgewater</option>
+              <option>Rogers Park</option>
+              <option>Andersonville</option>
+              <option>Uptown</option>
+              <option>Avondale</option>
+              <option>Logan Square</option>
+              <option>Bucktown</option>
+              <option>Wicker Park</option>
+            </optgroup>
+            <optgroup label="West & South">
+              <option>West Loop</option>
+              <option>Fulton Market</option>
+              <option>West Town</option>
+              <option>Ukrainian Village</option>
+              <option>Humboldt Park</option>
+              <option>Little Italy</option>
+              <option>Pilsen</option>
+              <option>Chinatown</option>
+              <option>Bridgeport</option>
+              <option>Bronzeville</option>
+              <option>Hyde Park</option>
+              <option>Kenwood</option>
+              <option>Garfield Park</option>
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       <div class="field">
@@ -78,26 +115,30 @@
 
       <div class="field">
         <label for="budgetSelect">Budget</label>
-        <select id="budgetSelect" name="budget">
-          <option value="">Any budget</option>
-          <option value="cheap">$ Cheap</option>
-          <option value="moderate">$$ Moderate</option>
-          <option value="expensive">$$$ Expensive</option>
-        </select>
+        <div class="select-shell">
+          <select id="budgetSelect" name="budget">
+            <option value="">Any budget</option>
+            <option value="cheap">$ Cheap</option>
+            <option value="moderate">$$ Moderate</option>
+            <option value="expensive">$$$ Expensive</option>
+          </select>
+        </div>
       </div>
 
       <div class="field">
         <label for="vibeSelect">Vibe / Aesthetic</label>
-        <select id="vibeSelect" name="vibe">
-          <option value="">Any vibe</option>
-          <option value="cozy">Cozy</option>
-          <option value="rooftop">Rooftop</option>
-          <option value="romantic">Romantic</option>
-          <option value="hidden-gem">Hidden Gem</option>
-          <option value="touristy">Touristy</option>
-          <option value="luxury">Luxury</option>
-          <option value="college-friendly">College-Friendly</option>
-        </select>
+        <div class="select-shell">
+          <select id="vibeSelect" name="vibe">
+            <option value="">Any vibe</option>
+            <option value="cozy">Cozy</option>
+            <option value="rooftop">Rooftop</option>
+            <option value="romantic">Romantic</option>
+            <option value="hidden-gem">Hidden Gem</option>
+            <option value="touristy">Touristy</option>
+            <option value="luxury">Luxury</option>
+            <option value="college-friendly">College-Friendly</option>
+          </select>
+        </div>
       </div>
 
     </form>
@@ -127,9 +168,15 @@
     </aside>
   </main>
 
+  <div class="place-detail-backdrop" id="placeDetailBackdrop" hidden></div>
+  <aside class="place-detail-panel" id="placeDetailPanel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="placeDetailTitle">
+    <button class="place-detail-close" id="placeDetailCloseBtn" type="button" aria-label="Close place details">x</button>
+    <div class="place-detail-content" id="placeDetailContent"></div>
+  </aside>
+
   <script src="Skeleton_Loaders.js?v=1"></script>
   <script src="Place_Cache.js?v=1"></script>
   <script src="Auth_Client.js?v=3"></script>
-  <script src="Script.js?v=34"></script>
+  <script src="Script.js?v=38"></script>
 </body>
 </html>

@@ -200,6 +200,26 @@ function addPlacesToLookup(nextPlaces = []) {
   });
 }
 
+function placeKeys(place = {}) {
+  return [
+    place.id,
+    place.supabasePlaceId,
+    place.placeId,
+    place.googlePlaceId,
+    place.google_place_id,
+    place.place_id,
+    place.name?.toLowerCase()
+  ].filter(Boolean).map(String);
+}
+
+function findPlaceForWorkspace(placeId) {
+  const key = String(placeId || "");
+  if (!key) return null;
+
+  return [...playbookPlaces, ...allPlaces, ...workspacePlaces]
+    .find((place) => placeKeys(place).includes(key)) || null;
+}
+
 function placesFromSelectedOuting(snapshotPlaces = [], placeIds = []) {
   const normalizedSnapshotPlaces = snapshotPlaces.map(normalizeSelectedOutingPlace);
   addPlacesToLookup(normalizedSnapshotPlaces);
@@ -277,11 +297,15 @@ async function loadPlaybookPlacesFromApi() {
     return;
   }
   playbookPlaces = storedPlaces.map(normalizeStoredPlace);
+  addPlacesToLookup(playbookPlaces);
+  workspacePlaces = loadWorkspacePlaces();
   savePlaybookPlaces();
 }
 
-let playbookPlaces = loadPlaybookPlaces();
-let workspacePlaces = loadWorkspacePlaces();
+let playbookPlaces = [];
+let workspacePlaces = [];
+playbookPlaces = loadPlaybookPlaces();
+workspacePlaces = loadWorkspacePlaces();
 let outingMap;
 let googleMapsPromise;
 let mapMarkers = [];
@@ -301,6 +325,7 @@ let titleEditSnapshot = null;
 let dateEditSnapshot = null;
 let timeframeEditSnapshot = null;
 let isApplyingHistory = false;
+let draggedPlaceId = "";
 
 const chicagoMapBounds = {
   north: 41.96,
@@ -338,10 +363,10 @@ function applyOutingState(state) {
   outingDateInput.value = state.date || new Date().toISOString().slice(0, 10);
   timeframeSelect.value = state.timeframe || "Evening: 5 PM - 9 PM";
   playbookPlaces = state.playbookPlaceIds
-    .map((placeId) => allPlaces.find((place) => place.id === placeId))
+    .map(findPlaceForWorkspace)
     .filter(Boolean);
   workspacePlaces = (state.workspacePlaceIds || [])
-    .map((placeId) => allPlaces.find((place) => place.id === placeId))
+    .map(findPlaceForWorkspace)
     .filter(Boolean);
   contributors = normalizeContributors(state.contributors);
   savePlaybookPlaces();
@@ -426,7 +451,7 @@ function loadPlaybookPlaces() {
     if (!Array.isArray(savedIds)) return [];
 
     return savedIds
-      .map((placeId) => allPlaces.find((place) => place.id === placeId))
+      .map(findPlaceForWorkspace)
       .filter(Boolean);
   } catch (error) {
     return [];
@@ -439,7 +464,7 @@ function loadWorkspacePlaces() {
     if (!Array.isArray(savedIds)) return [];
 
     return savedIds
-      .map((placeId) => allPlaces.find((place) => place.id === placeId))
+      .map(findPlaceForWorkspace)
       .filter(Boolean);
   } catch (error) {
     return [];
@@ -936,7 +961,7 @@ function playbookCard(place) {
     >
       <span class="tag">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
       <h3>${escapeHtml(place.name)}</h3>
-      <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" />
+      <img src="${escapeHtml(place.image)}" alt="${escapeHtml(place.name)}" draggable="false" />
       <p class="source">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.16 1.16"></path>
@@ -947,7 +972,7 @@ function playbookCard(place) {
       <p class="time">${escapeHtml(date)} - ${escapeHtml(place.timeWindow)}</p>
       <p class="neighborhood">${escapeHtml(place.neighborhood)}</p>
       <p class="note">${escapeHtml(place.note)}</p>
-      <button class="remove-playbook-place" type="button" aria-label="Remove ${escapeHtml(place.name)}">Remove</button>
+      <button class="remove-playbook-place" type="button" draggable="false" aria-label="Remove ${escapeHtml(place.name)}">Remove</button>
     </article>
   `;
 }
@@ -1062,8 +1087,8 @@ function renderWorkspace() {
 }
 
 function addPlaceToWorkspace(placeId, shouldRecordHistory = true) {
-  const place = allPlaces.find((item) => item.id === placeId);
-  if (!place || workspacePlaces.some((item) => item.id === placeId)) return;
+  const place = findPlaceForWorkspace(placeId);
+  if (!place || workspacePlaces.some((item) => placeKeys(item).some((key) => placeKeys(place).includes(key)))) return;
 
   if (shouldRecordHistory) pushUndoState();
   workspacePlaces = [...workspacePlaces, place];
@@ -1531,9 +1556,16 @@ collectionsList.addEventListener("click", (event) => {
 });
 
 collectionsList.addEventListener("dragstart", (event) => {
+  if (event.target.closest("button")) {
+    event.preventDefault();
+    return;
+  }
+
   const card = event.target.closest(".collection-card[data-place-id]");
   if (!card) return;
 
+  draggedPlaceId = card.dataset.placeId || "";
+  event.dataTransfer.setData("application/x-chicago-place-id", draggedPlaceId);
   event.dataTransfer.setData("text/plain", card.dataset.placeId);
   event.dataTransfer.effectAllowed = "copy";
   card.classList.add("is-dragging");
@@ -1542,6 +1574,7 @@ collectionsList.addEventListener("dragstart", (event) => {
 collectionsList.addEventListener("dragend", (event) => {
   const card = event.target.closest(".collection-card[data-place-id]");
   if (card) card.classList.remove("is-dragging");
+  draggedPlaceId = "";
 });
 
 canvasDropZone.addEventListener("dragover", (event) => {
@@ -1559,7 +1592,13 @@ canvasDropZone.addEventListener("dragleave", (event) => {
 canvasDropZone.addEventListener("drop", (event) => {
   event.preventDefault();
   canvasDropZone.classList.remove("is-drag-over");
-  addPlaceToWorkspace(event.dataTransfer.getData("text/plain"));
+  const placeId = (
+    event.dataTransfer.getData("application/x-chicago-place-id") ||
+    event.dataTransfer.getData("text/plain") ||
+    draggedPlaceId
+  );
+  draggedPlaceId = "";
+  addPlaceToWorkspace(placeId);
 });
 
 canvasDropZone.addEventListener("click", (event) => {

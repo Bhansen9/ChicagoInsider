@@ -300,9 +300,19 @@ input {
   border: 1px solid transparent;
   border-radius: 7px;
   background: var(--card);
-  cursor: pointer;
+  cursor: grab;
   overflow: visible;
   transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.collection-card:active {
+  cursor: grabbing;
+}
+
+.collection-card:hover,
+.collection-card:focus-visible {
+  border-color: #9fc8ff;
+  box-shadow: 0 8px 18px rgba(21, 151, 255, 0.12);
 }
 
 .collection-card.is-dragging {
@@ -629,6 +639,11 @@ input {
   background: #eef6ff;
   border-color: var(--accent);
   box-shadow: inset 0 0 0 3px rgba(21, 151, 255, 0.24);
+}
+
+.canvas-drop-zone.is-drag-over .workspace-empty-state,
+.canvas-drop-zone.is-drag-over .workspace-list {
+  border-color: var(--accent);
 }
 
 .workspace-shell {

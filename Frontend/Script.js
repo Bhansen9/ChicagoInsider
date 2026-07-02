@@ -12,6 +12,10 @@ const heroSearchForm = document.querySelector("#heroSearchForm");
 const heroSearchInput = document.querySelector("#heroSearchInput");
 const heroBgImageA = document.querySelector("#heroBgImageA");
 const heroBgImageB = document.querySelector("#heroBgImageB");
+const placeDetailPanel = document.querySelector("#placeDetailPanel");
+const placeDetailBackdrop = document.querySelector("#placeDetailBackdrop");
+const placeDetailContent = document.querySelector("#placeDetailContent");
+const placeDetailCloseBtn = document.querySelector("#placeDetailCloseBtn");
 const skeletons = window.ChicagoInsiderSkeletons;
 const auth = window.ChicagoInsiderAuth;
 
@@ -66,6 +70,7 @@ let chicagoMap;
 let googleMapsPromise;
 let mapMarkers = [];
 let activeMapInfoWindow;
+let activeMapMarker;
 let mapCloseClickListener;
 let filterSearchTimer;
 let placePhotoRotationTimer;
@@ -78,6 +83,8 @@ let placesById = new Map();
 let savedPlaceKeys = new Set();
 let lastRecommendations = [];
 let lastParsedFilters = {};
+let lastPlaceDetailTrigger = null;
+let placeDetailCloseTimer;
 
 const chicagoMapBounds = {
   north: 41.96,
@@ -258,6 +265,192 @@ function placePhotoUrls(place) {
   return photos.length ? photos : [resolveAssetUrl(PLACE_IMAGE_FALLBACKS["Chicago Riverwalk"])];
 }
 
+function cleanExternalUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(url)) return `https://${url}`;
+  return "";
+}
+
+function normalizeTextList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function pillList(items) {
+  return normalizeTextList(items)
+    .map((item) => `<span class="place-detail-pill">${escapeHtml(titleCase(item))}</span>`)
+    .join("");
+}
+
+function placeRatingText(place = {}) {
+  const rating = Number(place.rating || place.ratingAverage || place.rating_average);
+  const ratingCount = Number(place.userRatingCount || place.user_rating_count || place.ratingCount || place.rating_count);
+
+  if (!rating) return "Not rated yet";
+  if (ratingCount) return `${rating.toFixed(1)} from ${ratingCount.toLocaleString()} ratings`;
+  return `${rating.toFixed(1)} out of 5`;
+}
+
+function placeMapUrl(place = {}) {
+  const directMapUrl = cleanExternalUrl(place.googleMapsUri || place.google_maps_uri);
+  if (directMapUrl) return directMapUrl;
+
+  const query = [place.name, place.neighborhood, "Chicago"].filter(Boolean).join(" ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function detailStat(label, value) {
+  if (!value) return "";
+
+  return `
+    <div class="place-detail-stat">
+      <span>${escapeHtml(label)}</span>
+      <span>${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function renderPlaceDetail(place) {
+  if (!placeDetailContent) return;
+
+  const photos = placePhotoUrls(place);
+  const imageUrl = photos[0] || placeImageUrl(place);
+  const mapUrl = placeMapUrl(place);
+  const websiteUrl = cleanExternalUrl(place.websiteUri || place.website || place.website_url);
+  const reviewUrl = cleanExternalUrl(place.reviewUrl || place.review_url);
+  const bestFor = normalizeTextList(place.bestFor || place.best_for);
+  const vibes = normalizeTextList(place.vibes);
+  const timeWindow = place.timeWindow || place.time_window || "Hours vary";
+  const summary = place.description || place.note || "A Chicago spot worth checking out.";
+  const matchReason = place.matchReason || place.reason || "";
+  const isSaved = isPlaceSaved(place);
+  const category = place.category || "Chicago spot";
+  const price = place.price || "";
+
+  placeDetailContent.innerHTML = `
+    <img
+      class="place-detail-hero-image"
+      src="${escapeHtml(imageUrl)}"
+      alt="${escapeHtml(place.name)}"
+      onerror="window.usePlaceImageFallback(this)"
+      data-place-name="${escapeHtml(place.name)}"
+    />
+    <div class="place-detail-kicker">
+      <span>${escapeHtml(category)}</span>
+      ${price ? `<span>${escapeHtml(price)}</span>` : ""}
+    </div>
+    <h2 id="placeDetailTitle">${escapeHtml(place.name)}</h2>
+    <p class="place-detail-summary">${escapeHtml(summary)}</p>
+    <div class="place-detail-stats">
+      ${detailStat("Neighborhood", place.neighborhood || "Chicago")}
+      ${detailStat("Price", price || "Varies")}
+      ${detailStat("Rating", placeRatingText(place))}
+      ${detailStat("Best Time", timeWindow)}
+    </div>
+    ${matchReason ? `
+      <section class="place-detail-section">
+        <h3>Why it fits</h3>
+        <p class="place-detail-copy">${escapeHtml(matchReason)}</p>
+      </section>
+    ` : ""}
+    ${bestFor.length ? `
+      <section class="place-detail-section">
+        <h3>Best for</h3>
+        <div class="place-detail-pill-list">${pillList(bestFor)}</div>
+      </section>
+    ` : ""}
+    ${vibes.length ? `
+      <section class="place-detail-section">
+        <h3>Vibes</h3>
+        <div class="place-detail-pill-list">${pillList(vibes)}</div>
+      </section>
+    ` : ""}
+    <div class="place-detail-actions">
+      <button
+        type="button"
+        class="place-detail-save ${isSaved ? "is-saved" : ""}"
+        data-detail-save-place-id="${escapeHtml(place.id)}"
+        ${isSaved ? "disabled" : ""}
+      >
+        ${isSaved ? "Saved" : "Save Spot"}
+      </button>
+      <a href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener noreferrer">Open Map</a>
+      ${websiteUrl ? `<a class="secondary" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}
+      ${reviewUrl && reviewUrl !== mapUrl ? `<a class="secondary" href="${escapeHtml(reviewUrl)}" target="_blank" rel="noopener noreferrer">Reviews</a>` : ""}
+    </div>
+  `;
+}
+
+function openPlaceDetail(placeId, triggerElement = null, { side = "right" } = {}) {
+  const place = placesById.get(String(placeId));
+  if (!place || !placeDetailPanel || !placeDetailContent) return;
+
+  window.clearTimeout(placeDetailCloseTimer);
+  lastPlaceDetailTrigger = triggerElement || document.activeElement;
+  renderPlaceDetail(place);
+  placeDetailBackdrop.hidden = false;
+  placeDetailPanel.classList.toggle("is-left", side === "left");
+  placeDetailPanel.setAttribute("aria-hidden", "false");
+  document.body.classList.add("place-detail-open");
+
+  window.requestAnimationFrame(() => {
+    placeDetailBackdrop.classList.add("is-open");
+    placeDetailPanel.classList.add("is-open");
+    placeDetailCloseBtn?.focus({ preventScroll: true });
+  });
+}
+
+function closePlaceDetail({ restoreFocus = true } = {}) {
+  if (!placeDetailPanel) return;
+
+  window.clearTimeout(placeDetailCloseTimer);
+  placeDetailBackdrop?.classList.remove("is-open");
+  placeDetailPanel.classList.remove("is-open");
+  placeDetailPanel.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("place-detail-open");
+
+  placeDetailCloseTimer = window.setTimeout(() => {
+    if (placeDetailBackdrop) placeDetailBackdrop.hidden = true;
+    placeDetailPanel.classList.remove("is-left");
+    if (restoreFocus && lastPlaceDetailTrigger?.isConnected) {
+      lastPlaceDetailTrigger.focus?.({ preventScroll: true });
+    }
+  }, 220);
+}
+
+async function savePlaceFromButton(saveButton, placeId) {
+  const place = placesById.get(String(placeId));
+  if (!place) return false;
+
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  try {
+    await auth.saveSpot(place);
+    rememberSavedPlace(place);
+    saveButton.textContent = "Saved";
+    saveButton.classList.add("is-saved");
+    renderRecommendations(lastRecommendations, lastParsedFilters);
+    return true;
+  } catch (error) {
+    if (error.status !== 401) {
+      console.error(error);
+      saveButton.textContent = "Try Again";
+    }
+    return false;
+  } finally {
+    saveButton.disabled = false;
+  }
+}
+
 function renderLoading(message = "Finding Chicago spots...") {
   if (skeletons) {
     skeletons.showHomePlaceCards(placeGrid, 8);
@@ -279,6 +472,58 @@ function renderError() {
       Could not load recommendations. Make sure the backend server is running.
     </div>
   `;
+}
+
+function resetActiveMapMarker() {
+  if (!activeMapMarker) return;
+  activeMapMarker.setIcon(null);
+  activeMapMarker.setAnimation(null);
+  activeMapMarker.setZIndex(undefined);
+  activeMapMarker = null;
+}
+
+function selectedMarkerIcon(maps) {
+  return {
+    path: maps.SymbolPath.CIRCLE,
+    fillColor: "#2563eb",
+    fillOpacity: 1,
+    scale: 10,
+    strokeColor: "#ffffff",
+    strokeWeight: 3
+  };
+}
+
+function selectedMapInfoContent(place) {
+  return `
+    <div class="map-selected-card">
+      <span>Selected</span>
+      <strong>${escapeHtml(place.name)}</strong>
+      <p>${escapeHtml(place.neighborhood || "Chicago")}</p>
+    </div>
+  `;
+}
+
+function showSelectedMapPlace({ maps, map, marker, place }) {
+  resetActiveMapMarker();
+
+  marker.setIcon(selectedMarkerIcon(maps));
+  marker.setZIndex(9999);
+  if (maps.Animation?.BOUNCE) {
+    marker.setAnimation(maps.Animation.BOUNCE);
+    window.setTimeout(() => {
+      if (activeMapMarker === marker) marker.setAnimation(null);
+    }, 900);
+  }
+  activeMapMarker = marker;
+
+  if (activeMapInfoWindow) activeMapInfoWindow.close();
+  activeMapInfoWindow = new maps.InfoWindow({
+    content: selectedMapInfoContent(place)
+  });
+  activeMapInfoWindow.open({ anchor: marker, map });
+
+  map.panTo(place.coordinates);
+  if (map.getZoom() < 13) map.setZoom(13);
 }
 
 async function loadGoogleMaps() {
@@ -372,6 +617,7 @@ async function updateMapMarkers(places = []) {
 
     if (activeMapInfoWindow) activeMapInfoWindow.close();
     activeMapInfoWindow = null;
+    resetActiveMapMarker();
 
     mapMarkers.forEach((marker) => marker.setMap(null));
     mapMarkers = placesWithCoordinates.map((place) => {
@@ -381,14 +627,9 @@ async function updateMapMarkers(places = []) {
         title: place.name
       });
 
-      const infoWindow = new maps.InfoWindow({
-        content: mapInfoContent(place)
-      });
-
       marker.addListener("click", () => {
-        if (activeMapInfoWindow) activeMapInfoWindow.close();
-        infoWindow.open({ anchor: marker, map });
-        activeMapInfoWindow = infoWindow;
+        showSelectedMapPlace({ maps, map, marker, place });
+        openPlaceDetail(place.id, mapPreview, { side: "left" });
       });
       bounds.extend(place.coordinates);
       return marker;
@@ -398,6 +639,7 @@ async function updateMapMarkers(places = []) {
       mapCloseClickListener = map.addListener("click", () => {
         if (activeMapInfoWindow) activeMapInfoWindow.close();
         activeMapInfoWindow = null;
+        resetActiveMapMarker();
       });
     }
 
@@ -458,7 +700,7 @@ function placeCard(place) {
     : "";
 
   return `
-    <article class="place-card card" data-place-id="${escapeHtml(place.id)}">
+    <article class="place-card card is-clickable" data-place-id="${escapeHtml(place.id)}" tabindex="0" aria-label="Open details for ${escapeHtml(place.name)}">
       <div class="place-card-body">
         <span class="tag">${escapeHtml(place.category)} | ${escapeHtml(place.price)}</span>
         <h3>${escapeHtml(place.name)}</h3>
@@ -805,33 +1047,50 @@ placeGrid.addEventListener("click", async (event) => {
     return;
   }
 
+  if (event.target.closest("a")) return;
+
   const saveButton = event.target.closest("button[data-save-place-id]");
-  if (!saveButton) return;
-
-  const place = placesById.get(String(saveButton.dataset.savePlaceId));
-  if (!place) return;
-
-  saveButton.disabled = true;
-  saveButton.textContent = "Saving...";
-
-  try {
-    await auth.saveSpot(place);
-    rememberSavedPlace(place);
-    saveButton.textContent = "Saved";
-    saveButton.classList.add("is-saved");
-    renderRecommendations(lastRecommendations, lastParsedFilters);
-  } catch (error) {
-    if (error.status !== 401) {
-      console.error(error);
-      saveButton.textContent = "Try Again";
-    }
-  } finally {
-    saveButton.disabled = false;
+  if (saveButton) {
+    await savePlaceFromButton(saveButton, saveButton.dataset.savePlaceId);
+    return;
   }
+
+  const card = event.target.closest(".place-card[data-place-id]");
+  if (!card || !placeGrid.contains(card)) return;
+  openPlaceDetail(card.dataset.placeId, card);
+});
+
+placeGrid.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest("button, a, input, select, textarea")) return;
+
+  const card = event.target.closest(".place-card[data-place-id]");
+  if (!card || !placeGrid.contains(card)) return;
+
+  event.preventDefault();
+  openPlaceDetail(card.dataset.placeId, card);
 });
 
 placeGrid.addEventListener("mouseover", handlePlaceCardMouseOver);
 placeGrid.addEventListener("mouseout", handlePlaceCardMouseOut);
+
+placeDetailContent?.addEventListener("click", async (event) => {
+  const saveButton = event.target.closest("button[data-detail-save-place-id]");
+  if (!saveButton) return;
+
+  const place = placesById.get(String(saveButton.dataset.detailSavePlaceId));
+  const saved = await savePlaceFromButton(saveButton, saveButton.dataset.detailSavePlaceId);
+  if (saved && place) renderPlaceDetail(place);
+});
+
+placeDetailCloseBtn?.addEventListener("click", () => closePlaceDetail());
+placeDetailBackdrop?.addEventListener("click", () => closePlaceDetail());
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && placeDetailPanel?.classList.contains("is-open")) {
+    closePlaceDetail();
+  }
+});
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeApp);
